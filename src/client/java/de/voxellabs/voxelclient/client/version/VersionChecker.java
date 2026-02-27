@@ -36,7 +36,7 @@ public final class VersionChecker {
     public static final String CURRENT_VERSION = "0.0.1";
 
     /** GitHub-Nutzername / Organisation */
-    private static final String GITHUB_OWNER = "Shvquu";          // ← anpassen
+    private static final String GITHUB_OWNER = "VoxelLabs-Minecraft";          // ← anpassen
 
     /** GitHub-Repository-Name */
     private static final String GITHUB_REPO  = "voxelclient";          // ← anpassen
