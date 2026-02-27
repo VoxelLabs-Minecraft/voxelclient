@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "id": "voxelclient",
+  "version": "${version}",
+  "name": "VoxelClient",
+  "description": "A feature-rich Minecraft client mod with HUD, Zoom, Freelook and Cosmetics.",
+  "authors": ["klein_sophie", "zNixFNA", "DeltaNimrod"],
+  "contact": {
+    "homepage": "https://voxellabs.de",
+    "sources": "https://github.com/shvquu/voxelclient"
+  },
+  "license": "MIT",
+  "icon": "icons/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "de.voxellabs.voxelclient.client.VoxelClientClient"
+    ]
+  },
+  "mixins": [
+    {
+      "config": "voxelclient.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=0.16.0",
+    "fabric-api": "*",
+    "minecraft": "~1.21.4",
+    "java": ">=21"
+  }
+}
