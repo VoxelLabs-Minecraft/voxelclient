@@ -1,14 +1,15 @@
 {
   "required": true,
-  "minVersion": "0.8",
   "package": "de.voxellabs.voxelclient.client.mixin",
   "compatibilityLevel": "JAVA_21",
-  "mixins": [
+  "client": [
+    "GameRendererMixin",
+    "MouseMixin",
+    "CapeFeatureRendererMixin",
+    "TitleScreenMixin",
+    "MultiplayerScreenMixin"
   ],
   "injectors": {
     "defaultRequire": 1
-  },
-  "overwrites": {
-    "requireAnnotations": true
   }
 }
