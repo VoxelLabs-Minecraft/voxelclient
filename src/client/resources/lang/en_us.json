@@ -1,20 +1,38 @@
 {
   "myclient.title": "MyClient Settings",
-  "myclient.hud.title": "HUD Settings",
-  "myclient.hud.showFps": "Show FPS",
-  "myclient.hud.showCoords": "Show Coordinates",
-  "myclient.hud.showArmor": "Show Armor Durability",
-  "myclient.hud.showDirection": "Show Direction",
-  "myclient.hud.showSpeed": "Show Speed",
-  "myclient.zoom.title": "Zoom Settings",
-  "myclient.zoom.smoothZoom": "Smooth Zoom",
-  "myclient.zoom.zoomFov": "Zoom FOV",
-  "myclient.freelook.title": "Freelook Settings",
-  "myclient.cosmetics.title": "Cosmetics",
-  "myclient.cosmetics.capeEnabled": "Cape Enabled",
-  "myclient.cosmetics.capeUrl": "Cape URL",
-  "myclient.key.openMenu": "Open MyClient Menu",
-  "myclient.key.zoom": "Zoom",
-  "myclient.key.freelook": "Freelook",
-  "myclient.key.category": "MyClient"
+
+  "myclient.mainmenu.singleplayer": "✦  Singleplayer",
+  "myclient.mainmenu.multiplayer":  "✦  Multiplayer",
+  "myclient.mainmenu.realms":       "✦  Minecraft Realms",
+  "myclient.mainmenu.options":      "Options",
+  "myclient.mainmenu.quit":         "Quit Game",
+
+  "myclient.serverlist.title":       "Server List",
+  "myclient.serverlist.pinned":      "★ PINNED",
+  "myclient.serverlist.yourservers": "── Your Servers ──",
+  "myclient.serverlist.noservers":   "No servers added yet. Click Add Server.",
+  "myclient.serverlist.add":         "Add Server",
+  "myclient.serverlist.edit":        "Edit",
+  "myclient.serverlist.remove":      "Remove",
+  "myclient.serverlist.connect":     "Connect",
+  "myclient.serverlist.back":        "Back",
+
+  "myclient.hud.title":        "HUD Settings",
+  "myclient.hud.showFps":      "Show FPS",
+  "myclient.hud.showCoords":   "Show Coordinates",
+  "myclient.hud.showArmor":    "Show Armor Durability",
+  "myclient.hud.showDirection":"Show Direction",
+  "myclient.hud.showSpeed":    "Show Speed",
+
+  "myclient.zoom.title":       "Zoom Settings",
+  "myclient.zoom.smoothZoom":  "Smooth Zoom",
+  "myclient.zoom.zoomFov":     "Zoom FOV",
+
+  "myclient.freelook.title":   "Freelook Settings",
+  "myclient.cosmetics.title":  "Cosmetics",
+
+  "myclient.key.openMenu":     "Open MyClient Menu",
+  "myclient.key.zoom":         "Zoom",
+  "myclient.key.freelook":     "Freelook",
+  "myclient.key.category":     "MyClient"
 }

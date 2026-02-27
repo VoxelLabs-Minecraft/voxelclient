@@ -6,6 +6,7 @@ import de.voxellabs.voxelclient.client.features.FreelookFeature;
 import de.voxellabs.voxelclient.client.features.ZoomFeature;
 import de.voxellabs.voxelclient.client.gui.ClientModScreen;
 import de.voxellabs.voxelclient.client.hud.HudRenderer;
+import de.voxellabs.voxelclient.client.version.VersionChecker;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
@@ -17,6 +18,7 @@ import org.lwjgl.glfw.GLFW;
 public class VoxelClientClient implements ClientModInitializer {
 
     public static final String MOD_ID = "voxelclient";
+    public static final String MOD_VERSION = VersionChecker.CURRENT_VERSION;
 
     public static KeyBinding keyOpenMenu;
     public static KeyBinding keyZoom;
@@ -24,8 +26,13 @@ public class VoxelClientClient implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        System.out.println("[MyClient] Initialising MyClient for Minecraft 1.21.x (Fabric)");
+        System.out.println("[VoxelClient] ▶ Starting VoxelClient v" + MOD_VERSION + " (Minecraft 1.21.x / Fabric)");
+
+        //1. Load configuration from disk
         VoxelClientConfig.load();
+
+        //2. Update-Check asynchron
+        VersionChecker.checkForUpdate();
 
         keyOpenMenu = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.myclient.openMenu",
@@ -71,6 +78,9 @@ public class VoxelClientClient implements ClientModInitializer {
                 }
             }
         });
-        System.out.println("[MyClient] Initialisation complete! Press RIGHT SHIFT to open settings.");
+        System.out.println("[VoxelClient] ✔ Initialisation complete!");
+        System.out.println("[VoxelClient]   Pinned servers: Plantaria.net, ave.rip");
+        System.out.println("[VoxelClient]   Update-Check läuft im Hintergrund…");
+        System.out.println("[VoxelClient]   Press RIGHT SHIFT in-game to open settings.");
     }
 }
