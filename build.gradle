@@ -18,7 +18,7 @@ loom {
     splitEnvironmentSourceSets()
 
     mods {
-        "myclient" {
+        "voxelclient" {
             sourceSet sourceSets.main
             sourceSet sourceSets.client
         }

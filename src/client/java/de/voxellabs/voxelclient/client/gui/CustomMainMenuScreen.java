@@ -6,6 +6,7 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.option.OptionsScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.text.Text;
+import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
 
 /**
@@ -32,20 +33,26 @@ public class CustomMainMenuScreen extends Screen {
     private static final String BRANDING_LEFT  = "VoxelClient v" + VersionChecker.CURRENT_VERSION;
     private static final String BRANDING_RIGHT = "Plantaria.net ♥ ave.rip";
 
-    private static final int BTN_W = 200;
-    private static final int BTN_H = 20;
-
-    // Höhe des Update-Banners (nur wenn sichtbar)
-    private static final int BANNER_H = 22;
+    // ── CustomIcon ───────────────────────────────────────────────────────────
+    private static final Identifier LOGO_TEXTURE = Identifier.of("voxelclient", "icons/icon.png");
+    private static final int LOGO_SIZE = 64;
 
     // ── Animations-State ──────────────────────────────────────────────────────
-    private float animTick  = 0f;
-    private float logoPulse = 0f;
-    private boolean pulseUp = true;
+    private static final int BTN_W    = 200;
+    private static final int BTN_H    = 20;
+    private static final int BANNER_H = 22;
 
-    // Update-Banner-Animation
-    private float bannerAlpha     = 0f;   // fade-in
-    private float bannerPulse     = 0f;   // leichtes Pulsieren der Border
+    private int logoY;
+
+    private float animTick  = 0f;
+    private float logoBob   = 0f;
+    private boolean bobUp   = true;
+
+    private float glowPulse     = 0f;
+    private boolean glowPulseUp = true;
+
+    private float bannerAlpha     = 0f;
+    private float bannerPulse     = 0f;
     private boolean bannerPulseUp = true;
 
     // ── Constructor ───────────────────────────────────────────────────────────
@@ -57,7 +64,11 @@ public class CustomMainMenuScreen extends Screen {
     @Override
     protected void init() {
         int cx     = this.width / 2;
-        int startY = this.height / 2 - 28;
+
+        int bannerOffset = VersionChecker.isUpdateAvailable() ? BANNER_H : 0;
+        logoY = bannerOffset + (this.height - bannerOffset) / 2 - 115;
+
+        int startY = logoY + LOGO_SIZE + 32;
 
         // ── Haupt-Buttons ─────────────────────────────────────────────────────
         addDrawableChild(ButtonWidget.builder(
@@ -112,8 +123,11 @@ public class CustomMainMenuScreen extends Screen {
         // Animations-Tick
         animTick += delta * 0.5f;
 
-        if (pulseUp) { logoPulse += delta * 0.018f; if (logoPulse >= 1f)   { logoPulse = 1f;   pulseUp = false; } }
-        else         { logoPulse -= delta * 0.018f; if (logoPulse <= 0.7f) { logoPulse = 0.7f; pulseUp = true;  } }
+        if (bobUp) { logoBob += delta * 0.012f; if (logoBob >= 1f)   { logoBob = 1f;   bobUp = false; } }
+        else       { logoBob -= delta * 0.012f; if (logoBob <= -1f)  { logoBob = -1f;  bobUp = true;  } }
+
+        if (glowPulseUp) { glowPulse += delta * 0.022f; if (glowPulse >= 1f)   { glowPulse = 1f;   glowPulseUp = false; } }
+        else             { glowPulse -= delta * 0.022f; if (glowPulse <= 0.3f) { glowPulse = 0.3f; glowPulseUp = true;  } }
 
         // ── Hintergrund ───────────────────────────────────────────────────────
         renderAnimatedBackground(ctx);
@@ -130,6 +144,19 @@ public class CustomMainMenuScreen extends Screen {
 
         // ── Logo ──────────────────────────────────────────────────────────────
         int cx = this.width / 2;
+        int bob = (int)(logoBob * 2.5f);
+
+        renderLogoGlow(ctx, cx, logoY + bob);
+
+        int logoX = cx - LOGO_SIZE / 2;
+        ctx.drawTexture(
+                net.minecraft.client.render.RenderLayer::getGuiTextured,
+                LOGO_TEXTURE,
+                logoX, logoY + bob,
+                0, 0,
+                LOGO_SIZE, LOGO_SIZE,
+                LOGO_SIZE, LOGO_SIZE
+        );
 
         int r = (int)(60  + 80  * MathHelper.sin(animTick * 0.04f));
         int g = (int)(100 + 100 * MathHelper.sin(animTick * 0.03f + 1f));
@@ -160,15 +187,24 @@ public class CustomMainMenuScreen extends Screen {
         super.render(ctx, mouseX, mouseY, delta);
     }
 
-    /**
-     * Rendert das Update-Banner oben auf dem Bildschirm.
-     *
-     * Aussehen:
-     *  ┌────────────────────────────────────────────────────────────────────┐
-     *  │  ⬆  MyClient v1.2.0 ist verfügbar!  (installiert: v1.0.0)         │
-     *  │     Klicke hier oder drücke [U] zum Öffnen der Download-Seite.    │
-     *  └────────────────────────────────────────────────────────────────────┘
-     */
+    private void renderLogoGlow(DrawContext ctx, int cx, int topY) {
+        int cy = topY + LOGO_SIZE / 2;
+
+        int r = (int)(40  + 40  * MathHelper.sin(animTick * 0.03f));
+        int g = (int)(80  + 60  * MathHelper.sin(animTick * 0.025f + 1f));
+        int b = (int)(180 + 60  * MathHelper.sin(animTick * 0.04f  + 2f));
+
+        int[] radii  = { 52, 44, 38, 32 };
+        int[] alphas = { (int)(15 * glowPulse), (int)(25 * glowPulse),
+                (int)(35 * glowPulse), (int)(20 * glowPulse) };
+
+        for (int i = 0; i < radii.length; i++) {
+            int rad = radii[i];
+            int col = (alphas[i] << 24) | (r << 16) | (g << 8) | b;
+            ctx.fill(cx - rad, cy - rad, cx + rad, cy + rad, col);
+        }
+    }
+
     private void renderUpdateBanner(DrawContext ctx, int mouseX, int mouseY, float delta) {
         // Fade-In
         if (bannerAlpha < 1f) bannerAlpha = Math.min(1f, bannerAlpha + delta * 0.04f);
