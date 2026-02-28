@@ -31,7 +31,7 @@ public class CustomMainMenuScreen extends Screen {
 
     // ── Konstanten ────────────────────────────────────────────────────────────
     private static final String BRANDING_LEFT  = "VoxelClient v" + VersionChecker.CURRENT_VERSION;
-    private static final String BRANDING_RIGHT = "Plantaria.net ♥ ave.rip";
+    private static final String BRANDING_RIGHT = "Powered by Plantaria.net & ave.rip";
 
     // ── CustomIcon ───────────────────────────────────────────────────────────
     private static final Identifier LOGO_TEXTURE = Identifier.of("voxelclient", "icons/icon.png");
@@ -58,6 +58,14 @@ public class CustomMainMenuScreen extends Screen {
     // ── Constructor ───────────────────────────────────────────────────────────
     public CustomMainMenuScreen() {
         super(Text.literal("VoxelClient v" + VersionChecker.CURRENT_VERSION));
+    }
+
+    // ── Background ─────────────────────────────────────────────────────────────
+    // Override to prevent vanilla panorama/darkening from being drawn on top
+    // of our custom content when super.render() is called.
+    @Override
+    public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
+        // intentionally empty – we render our own animated background in render()
     }
 
     // ── Init ──────────────────────────────────────────────────────────────────
@@ -149,14 +157,14 @@ public class CustomMainMenuScreen extends Screen {
         renderLogoGlow(ctx, cx, logoY + bob);
 
         int logoX = cx - LOGO_SIZE / 2;
-        ctx.drawTexture(
-                net.minecraft.client.render.RenderLayer::getGuiTextured,
-                LOGO_TEXTURE,
-                logoX, logoY + bob,
-                0, 0,
-                LOGO_SIZE, LOGO_SIZE,
-                LOGO_SIZE, LOGO_SIZE
-        );
+//        ctx.drawTexture(
+//                net.minecraft.client.render.RenderLayer::getGuiTextured,
+//                LOGO_TEXTURE,
+//                logoX, logoY + bob,
+//                0, 0,
+//                LOGO_SIZE, LOGO_SIZE,
+//                LOGO_SIZE, LOGO_SIZE
+//        );
 
         int r = (int)(60  + 80  * MathHelper.sin(animTick * 0.04f));
         int g = (int)(100 + 100 * MathHelper.sin(animTick * 0.03f + 1f));
@@ -178,10 +186,10 @@ public class CustomMainMenuScreen extends Screen {
 
         // ── Branding Footer ───────────────────────────────────────────────────
         ctx.drawTextWithShadow(this.textRenderer, BRANDING_LEFT,
-                4, this.height - 10, 0x555555);
+                4, this.height - 14, 0xAAAAAA);
         ctx.drawTextWithShadow(this.textRenderer, BRANDING_RIGHT,
                 this.width - this.textRenderer.getWidth(BRANDING_RIGHT) - 4,
-                this.height - 10, 0x555555);
+                this.height - 14, 0xAAAAAA);
 
         // Buttons rendern (über allem)
         super.render(ctx, mouseX, mouseY, delta);
