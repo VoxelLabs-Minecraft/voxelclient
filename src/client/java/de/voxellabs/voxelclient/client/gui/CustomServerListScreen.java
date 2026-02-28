@@ -131,6 +131,12 @@ public class CustomServerListScreen extends Screen {
             .dimensions(cx + 2, btnY, 50, BTN_H).build());
     }
 
+    // ── Background ─────────────────────────────────────────────────────────────
+    @Override
+    public void renderBackground(DrawContext context, int mouseX, int mouseY, float delta) {
+        // intentionally empty – we render our own background in render()
+    }
+
     // ── Render ────────────────────────────────────────────────────────────────
     @Override
     public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
@@ -200,24 +206,24 @@ public class CustomServerListScreen extends Screen {
     private void renderPinnedEntry(DrawContext ctx, PinnedServer ps,
                                    int x, int y, int w,
                                    boolean hovered, boolean selected) {
-        // Background
-        int bg = selected ? 0x88334466 : hovered ? 0x55223355 : 0x44111122;
+        // Background — more visible
+        int bg = selected ? 0xCC334466 : hovered ? 0xAA223355 : 0x88111133;
         ctx.fill(x, y, x + w, y + ENTRY_H, bg);
 
         // Accent bar on the left (colour per server)
         ctx.fill(x, y, x + PINNED_ACCENT_W, y + ENTRY_H, ps.accentColor);
 
-        // ★ Pinned badge
-        ctx.drawTextWithShadow(this.textRenderer, "★ PINNED",
+        // ★ Featured badge
+        ctx.drawTextWithShadow(this.textRenderer, "§6★ §eFEATURED",
                 x + 8, y + 3, 0xFFD700);
 
-        // Server name
-        ctx.drawTextWithShadow(this.textRenderer, ps.displayName,
+        // Server name (bold white)
+        ctx.drawTextWithShadow(this.textRenderer, "§f" + ps.displayName,
                 x + 8, y + 13, 0xFFFFFF);
 
         // Address
-        ctx.drawTextWithShadow(this.textRenderer, "§8" + ps.address,
-                x + 8, y + 24, 0xAAAAAA);
+        ctx.drawTextWithShadow(this.textRenderer, "§7" + ps.address,
+                x + 8, y + 24, 0xBBBBBB);
 
         // Tagline (right side)
         ctx.drawTextWithShadow(this.textRenderer, ps.tagline,
@@ -228,6 +234,8 @@ public class CustomServerListScreen extends Screen {
             ctx.fill(x, y, x + w, y + 1, ps.accentColor);
             ctx.fill(x, y + ENTRY_H - 1, x + w, y + ENTRY_H, ps.accentColor);
         }
+        // Bottom separator line for each entry
+        ctx.fill(x, y + ENTRY_H, x + w, y + ENTRY_H + 1, 0x33FFFFFF);
     }
 
     private void renderUserEntry(DrawContext ctx, UserServer us,
@@ -250,37 +258,65 @@ public class CustomServerListScreen extends Screen {
 
     private void renderAddServerForm(DrawContext ctx, int mouseX, int mouseY) {
         int cx = this.width / 2;
-        int formY = this.height / 2 - 50;
+        int formY = this.height / 2 - 60;
 
-        // Panel
-        ctx.fill(cx - 160, formY - 10, cx + 160, formY + 80, 0xCC111122);
-        ctx.fill(cx - 160, formY - 10, cx + 160, formY - 9, 0xFF3355AA);
+        // Panel background
+        ctx.fill(cx - 160, formY - 14, cx + 160, formY + 100, 0xDD111122);
+        // Top accent border
+        ctx.fill(cx - 160, formY - 14, cx + 160, formY - 12, 0xFF3355AA);
+        // Side borders
+        ctx.fill(cx - 160, formY - 14, cx - 158, formY + 100, 0xFF3355AA);
+        ctx.fill(cx + 158, formY - 14, cx + 160, formY + 100, 0xFF3355AA);
+        // Bottom border
+        ctx.fill(cx - 160, formY + 98, cx + 160, formY + 100, 0xFF3355AA);
 
         ctx.drawCenteredTextWithShadow(this.textRenderer,
-                Text.literal("§eAdd New Server"), cx, formY, 0xFFFFFF);
+                Text.literal("§e✦ Add New Server"), cx, formY - 4, 0xFFFFFF);
 
-        // Name field
+        // ── Server Name Label + Field ──────────────────────────────────────────
+        ctx.drawTextWithShadow(this.textRenderer, "§fServer Name:", cx - 140, formY + 14, 0xFFFFFF);
+
         boolean nameFocused = editingName;
-        ctx.fill(cx - 120, formY + 16, cx + 120, formY + 28,
-                nameFocused ? 0x99334488 : 0x66222244);
-        ctx.fill(cx - 120, formY + 15, cx + 120, formY + 16,
-                nameFocused ? 0xFFAABBFF : 0xFF555577);
+        // Field background
+        ctx.fill(cx - 140, formY + 26, cx + 140, formY + 42, 0xFF000000);
+        // Field inner
+        ctx.fill(cx - 139, formY + 27, cx + 139, formY + 41,
+                nameFocused ? 0xFF1a1a3a : 0xFF0d0d1a);
+        // Field border
+        int nameBorderColor = nameFocused ? 0xFF5577DD : 0xFF333355;
+        ctx.fill(cx - 140, formY + 26, cx + 140, formY + 27, nameBorderColor);
+        ctx.fill(cx - 140, formY + 41, cx + 140, formY + 42, nameBorderColor);
+        ctx.fill(cx - 140, formY + 26, cx - 139, formY + 42, nameBorderColor);
+        ctx.fill(cx + 139, formY + 26, cx + 140, formY + 42, nameBorderColor);
+
         String nameDisplay = inputName.isEmpty() && !nameFocused
-                ? "§7Server Name..." : inputName + (nameFocused ? "§f|" : "");
-        ctx.drawTextWithShadow(this.textRenderer, nameDisplay, cx - 116, formY + 18, 0xFFFFFF);
+                ? "§7Enter server name..." : inputName + (nameFocused ? "§f_" : "");
+        ctx.drawTextWithShadow(this.textRenderer, nameDisplay, cx - 135, formY + 31, 0xFFFFFF);
 
-        // Address field
+        // ── Server Address Label + Field ───────────────────────────────────────
+        ctx.drawTextWithShadow(this.textRenderer, "§fServer Address:", cx - 140, formY + 50, 0xFFFFFF);
+
         boolean addrFocused = !editingName;
-        ctx.fill(cx - 120, formY + 38, cx + 120, formY + 50,
-                addrFocused ? 0x99334488 : 0x66222244);
-        ctx.fill(cx - 120, formY + 37, cx + 120, formY + 38,
-                addrFocused ? 0xFFAABBFF : 0xFF555577);
-        String addrDisplay = inputAddress.isEmpty() && !addrFocused
-                ? "§7Server Address..." : inputAddress + (addrFocused ? "§f|" : "");
-        ctx.drawTextWithShadow(this.textRenderer, addrDisplay, cx - 116, formY + 40, 0xFFFFFF);
+        // Field background
+        ctx.fill(cx - 140, formY + 62, cx + 140, formY + 78, 0xFF000000);
+        // Field inner
+        ctx.fill(cx - 139, formY + 63, cx + 139, formY + 77,
+                addrFocused ? 0xFF1a1a3a : 0xFF0d0d1a);
+        // Field border
+        int addrBorderColor = addrFocused ? 0xFF5577DD : 0xFF333355;
+        ctx.fill(cx - 140, formY + 62, cx + 140, formY + 63, addrBorderColor);
+        ctx.fill(cx - 140, formY + 77, cx + 140, formY + 78, addrBorderColor);
+        ctx.fill(cx - 140, formY + 62, cx - 139, formY + 78, addrBorderColor);
+        ctx.fill(cx + 139, formY + 62, cx + 140, formY + 78, addrBorderColor);
 
-        ctx.drawTextWithShadow(this.textRenderer, "§7[TAB] switch field • [ENTER] confirm",
-                cx - 116, formY + 56, 0x555555);
+        String addrDisplay = inputAddress.isEmpty() && !addrFocused
+                ? "§7e.g. play.example.com" : inputAddress + (addrFocused ? "§f_" : "");
+        ctx.drawTextWithShadow(this.textRenderer, addrDisplay, cx - 135, formY + 67, 0xFFFFFF);
+
+        // ── Help text ──────────────────────────────────────────────────────────
+        ctx.drawCenteredTextWithShadow(this.textRenderer,
+                Text.literal("§7[TAB] Switch field  §8•  §7[ENTER] Confirm  §8•  §7[ESC] Cancel"),
+                cx, formY + 84, 0x777777);
     }
 
     // ── Mouse / Keyboard input ────────────────────────────────────────────────
@@ -290,9 +326,9 @@ public class CustomServerListScreen extends Screen {
             handleListClick(mouseX, mouseY);
         } else {
             int cx = this.width / 2;
-            int formY = this.height / 2 - 50;
-            if (mouseY >= formY + 16 && mouseY <= formY + 28) editingName = true;
-            if (mouseY >= formY + 38 && mouseY <= formY + 50) editingName = false;
+            int formY = this.height / 2 - 60;
+            if (mouseY >= formY + 26 && mouseY <= formY + 42) editingName = true;
+            if (mouseY >= formY + 62 && mouseY <= formY + 78) editingName = false;
         }
         return super.mouseClicked(mouseX, mouseY, button);
     }
