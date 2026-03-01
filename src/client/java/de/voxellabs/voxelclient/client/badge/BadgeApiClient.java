@@ -2,6 +2,7 @@ package de.voxellabs.voxelclient.client.badge;
 
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import de.voxellabs.voxelclient.client.utils.VoxelClientNetwork;
 
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
@@ -46,13 +47,14 @@ public final class BadgeApiClient {
     private BadgeApiClient() {}
 
     public static CachedBadge getBadge(UUID uuid) {
-        CachedBadge cached = CACHE.get(uuid);
+        // Nur abfragen, wenn Spieler VoxelClient nutzt
+        if (!VoxelClientNetwork.isVoxelUser(uuid)) return null;
 
+        CachedBadge cached = CACHE.get(uuid);
         if (cached == null || cached.isExpired()) {
             Thread.ofVirtual().start(() -> fetchAndCache(uuid));
             return (cached == null || cached == NO_BADGE) ? null : cached;
         }
-
         return cached == NO_BADGE ? null : cached;
     }
 
