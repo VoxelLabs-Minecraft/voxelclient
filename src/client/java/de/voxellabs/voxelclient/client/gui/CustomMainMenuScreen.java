@@ -6,6 +6,7 @@ import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.option.OptionsScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
+import net.minecraft.client.render.RenderLayer;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.MathHelper;
@@ -25,7 +26,7 @@ import net.minecraft.util.math.MathHelper;
  *   │                   [    Realms   ]                       │
  *   │          [ Options ]        [ Quit Game ]               │
  *   │                                                         │
- *   │  MyClient v1.0.0          Plantaria.net ♥ ave.rip       │
+ *   │  MyClient v0.0.1          Plantaria.net ♥ ave.rip       │
  *   └─────────────────────────────────────────────────────────┘
  */
 public class CustomMainMenuScreen extends Screen {
@@ -35,6 +36,7 @@ public class CustomMainMenuScreen extends Screen {
     private static final String BRANDING_RIGHT = "Powered by Plantaria.net & ave.rip";
 
     // ── CustomIcon ───────────────────────────────────────────────────────────
+    private static final Identifier BG_TEXTURE = Identifier.of("voxelclient", "icons/menu_background.png");
     private static final Identifier LOGO_TEXTURE = Identifier.of("voxelclient", "icons/icon.png");
     private static final int LOGO_SIZE = 64;
 
@@ -139,8 +141,25 @@ public class CustomMainMenuScreen extends Screen {
         if (glowPulseUp) { glowPulse += delta * 0.022f; if (glowPulse >= 1f)   { glowPulse = 1f;   glowPulseUp = false; } }
         else             { glowPulse -= delta * 0.022f; if (glowPulse <= 0.3f) { glowPulse = 0.3f; glowPulseUp = true;  } }
 
+        int cx = this.width / 2;
         // ── Hintergrund ───────────────────────────────────────────────────────
-        renderAnimatedBackground(ctx);
+        ctx.drawTexture(
+                RenderLayer::getGuiTextured,
+                BG_TEXTURE,
+                0,0,
+                0,0,
+                this.width, this.height,
+                this.width, this.height
+        );
+
+        // 2. Gradient-Overlay
+        ctx.fillGradient(0, 0, this.width, this.height / 2, 0x66000000, 0x11000000);
+        ctx.fillGradient(0, this.height / 2, this.width, this.height, 0x11000000, 0xBB1a0e06);
+        ctx.fillGradient(
+                cx - BTN_W / 2 - 24, logoY - 12,
+                cx + BTN_W / 2 + 24, logoY + LOGO_SIZE + 150,
+                0x55000000, 0x99000000
+        );
 
         // ── Update-Banner ─────────────────────────────────────────────────────
         if (VersionChecker.isUpdateAvailable()) {
@@ -153,34 +172,32 @@ public class CustomMainMenuScreen extends Screen {
         }
 
         // ── Logo ──────────────────────────────────────────────────────────────
-        int cx = this.width / 2;
         int bob = (int)(logoBob * 2.5f);
-
         renderLogoGlow(ctx, cx, logoY + bob);
 
-        int logoX = cx - LOGO_SIZE / 2;
-//        ctx.drawTexture(
-//                net.minecraft.client.render.RenderLayer::getGuiTextured,
-//                LOGO_TEXTURE,
-//                logoX, logoY + bob,
-//                0, 0,
-//                LOGO_SIZE, LOGO_SIZE,
-//                LOGO_SIZE, LOGO_SIZE
-//        );
+        ctx.drawTexture(
+                RenderLayer::getGuiTextured,
+                LOGO_TEXTURE,
+                cx - LOGO_SIZE / 2, logoY + bob,
+                0, 0,
+                LOGO_SIZE, LOGO_SIZE,
+                LOGO_SIZE, LOGO_SIZE
+        );
 
-        int r = (int)(60  + 80  * MathHelper.sin(animTick * 0.04f));
-        int g = (int)(100 + 100 * MathHelper.sin(animTick * 0.03f + 1f));
-        int b = (int)(200 + 55  * MathHelper.sin(animTick * 0.05f + 2f));
-        int titleColor = 0xFF000000 | (r << 16) | (g << 8) | b;
-
-        ctx.drawCenteredTextWithShadow(this.textRenderer, "VoxelClient",
-                cx + 1, this.height / 2 - 90 + 1, 0x222222);
-        ctx.drawCenteredTextWithShadow(this.textRenderer, "VoxelClient",
-                cx,     this.height / 2 - 90,     titleColor);
-
-        ctx.drawCenteredTextWithShadow(this.textRenderer,
-                Text.literal("§7Minecraft 1.21.x  §8|  §7Fabric Edition"),
-                cx, this.height / 2 - 74, 0xAAAAAA);
+        // 5. Titel
+//        int r = (int)(60  + 80  * MathHelper.sin(animTick * 0.04f));
+//        int g = (int)(100 + 100 * MathHelper.sin(animTick * 0.03f + 1f));
+//        int b = (int)(200 + 55  * MathHelper.sin(animTick * 0.05f + 2f));
+//        int titleColor = 0xFF000000 | (r << 16) | (g << 8) | b;
+//
+//        ctx.drawCenteredTextWithShadow(this.textRenderer, "VoxelClient",
+//                cx + 1, this.height / 2 - 90 + 1, 0x222222);
+//        ctx.drawCenteredTextWithShadow(this.textRenderer, "VoxelClient",
+//                cx,     this.height / 2 - 90,     titleColor);
+//
+//        ctx.drawCenteredTextWithShadow(this.textRenderer,
+//                Text.literal("§7Minecraft 1.21.x  §8|  §7Fabric Edition"),
+//                cx, this.height / 2 - 74, 0xAAAAAA);
 
         // Trennlinie
         int divY = this.height / 2 - 62;
@@ -254,7 +271,7 @@ public class CustomMainMenuScreen extends Screen {
         int textA  = (int)(bannerAlpha * 255);
 
         // Icon + Haupttext
-        String mainText = "§e⬆  MyClient §fv" + VersionChecker.getLatestVersion()
+        String mainText = "§e⬆  VoxelClient §fv" + VersionChecker.getLatestVersion()
                 + " §7ist verfügbar!  §8(aktuell: v" + VersionChecker.CURRENT_VERSION + ")";
         int mainColor   = (textA << 24) | 0xFFFFFF;
 
@@ -285,7 +302,7 @@ public class CustomMainMenuScreen extends Screen {
             java.awt.Desktop.getDesktop().browse(
                     java.net.URI.create(VersionChecker.DOWNLOAD_URL));
         } catch (Exception e) {
-            System.err.println("[MyClient] Konnte Browser nicht öffnen: " + e.getMessage());
+            System.err.println("[VoxelClient] Konnte Browser nicht öffnen: " + e.getMessage());
         }
     }
 

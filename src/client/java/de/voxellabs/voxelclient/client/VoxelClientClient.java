@@ -9,13 +9,21 @@ import de.voxellabs.voxelclient.client.gui.ClientModScreen;
 import de.voxellabs.voxelclient.client.hud.HudRenderer;
 import de.voxellabs.voxelclient.client.version.VersionChecker;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
+import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.util.InputUtil;
+import org.lwjgl.BufferUtils;
 import org.lwjgl.glfw.GLFW;
+import org.lwjgl.glfw.GLFWImage;
+import org.lwjgl.system.MemoryStack;
+
+import java.io.InputStream;
+import java.nio.ByteBuffer;
 
 public class VoxelClientClient implements ClientModInitializer {
 
@@ -28,6 +36,7 @@ public class VoxelClientClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         System.out.println("[VoxelClient] ▶ Starting VoxelClient v" + MOD_VERSION + " (Minecraft 1.21.x / Fabric)");
+        changeIconsInTaskAndWindows();
 
         //1. Load configuration from disk
         VoxelClientConfig.load();
@@ -105,6 +114,54 @@ public class VoxelClientClient implements ClientModInitializer {
         showDiscordRichPresence();
     }
 
+    private void changeIconsInTaskAndWindows() {
+        ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
+            try (InputStream is = VoxelClientClient.class
+                    .getResourceAsStream("/assets/voxelclient/icon.png")) {
+
+                if (is == null) {
+                    System.err.println("[VoxelClient] icon.png nicht gefunden!");
+                    return;
+                }
+
+                NativeImage img = NativeImage.read(is);
+                long handle = client.getWindow().getHandle();
+
+                // RGBA-Bytes aus NativeImage lesen
+                int w = img.getWidth();
+                int h = img.getHeight();
+                ByteBuffer buffer = org.lwjgl.BufferUtils.createByteBuffer(w * h * 4);
+
+                for (int y = 0; y < h; y++) {
+                    for (int x = 0; x < w; x++) {
+                        int pixel = img.getColorArgb(x, y);
+                        // NativeImage speichert in ABGR → umwandeln zu RGBA
+                        buffer.put((byte)((pixel >> 16) & 0xFF)); // R
+                        buffer.put((byte)((pixel >>  8) & 0xFF)); // G
+                        buffer.put((byte)((pixel)       & 0xFF)); // B
+                        buffer.put((byte)((pixel >> 24) & 0xFF)); // A
+                    }
+                }
+                buffer.flip();
+
+                // GLFW Icon setzen
+                try (MemoryStack stack = MemoryStack.stackPush()) {
+                    GLFWImage icon = GLFWImage.malloc(stack);
+                    GLFWImage.Buffer iconBuf = GLFWImage.malloc(1, stack);
+                    icon.set(w, h, buffer);
+                    iconBuf.put(0, icon);
+                    GLFW.glfwSetWindowIcon(handle, iconBuf);
+                }
+
+                img.close();
+                System.out.println("[VoxelClient] Fenster-Icon gesetzt (" + w + "x" + h + ")");
+
+            } catch (Exception e) {
+                System.err.println("[VoxelClient] Icon-Fehler: " + e.getMessage());
+            }
+        });
+    }
+
     public void showDiscordRichPresence() {
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             client.execute(() -> {
@@ -114,6 +171,7 @@ public class VoxelClientClient implements ClientModInitializer {
                             ? client.getServer().getSaveProperties().getLevelName()
                             : "Unbekannte Welt";
                     DiscordRPCManager.showSingleplayer(worldName);
+                    System.out.println("[VoxelClient] ✔ Show singleplayer world with name " + worldName);
                     return;
                 }
 
@@ -125,8 +183,10 @@ public class VoxelClientClient implements ClientModInitializer {
 
                     if (address != null && address.endsWith(".realms.minecraft.net")) {
                         DiscordRPCManager.showRealms(name);
+                        System.out.println("[VoxelClient] ✔ Show realm with name " + name);
                     } else {
                         DiscordRPCManager.showMultiplayer(name, address);
+                        System.out.println("[VoxelClient] ✔ Show multiplayer screen with address " + address);
                     }
                 }
             });
@@ -134,5 +194,6 @@ public class VoxelClientClient implements ClientModInitializer {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) ->
                 DiscordRPCManager.showMainMenu()
         );
+        System.out.println("[VoxelClient] ✔ Showing Discord Rich Presence!");
     }
 }
