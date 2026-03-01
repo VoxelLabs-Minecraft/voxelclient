@@ -21,12 +21,11 @@ public class TitleScreenMixin {
 
     @Inject(method = "init()V", at = @At("HEAD"), cancellable = true)
     private void onInit(CallbackInfo ci) {
-        MinecraftClient mc = MinecraftClient.getInstance();
-        // Only swap if we are actually going to show the TitleScreen
-        // (not during resource reload init calls where currentScreen != this)
-        if (mc.currentScreen instanceof TitleScreen) {
-            mc.setScreen(new CustomMainMenuScreen());
-            ci.cancel();
-        }
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null) return;
+        if (client.world != null) return;
+
+        client.setScreen(new CustomMainMenuScreen());
+        ci.cancel();
     }
 }
