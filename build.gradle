@@ -40,6 +40,10 @@ dependencies {
 
     // Discord
     implementation include("com.github.JnCrMx:discord-game-sdk4j:v0.5.5")
+
+    // Badge
+    annotationProcessor "io.github.llamalad7:mixinextras-fabric:0.4.1"
+    implementation include("io.github.llamalad7:mixinextras-fabric:0.4.1")
 }
 
 processResources {
