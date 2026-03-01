@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "voxelclient",
-  "version": "${version}",
+  "version": "0.0.1",
   "name": "VoxelClient",
   "description": "A feature-rich Minecraft client mod with HUD, Zoom, Freelook and Cosmetics.",
   "authors": ["klein_sophie", "zNixFNA", "DeltaNimrod"],
