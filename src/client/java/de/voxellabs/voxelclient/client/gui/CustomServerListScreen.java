@@ -1,5 +1,9 @@
 package de.voxellabs.voxelclient.client.gui;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.multiplayer.ConnectScreen;
@@ -8,6 +12,8 @@ import net.minecraft.client.network.ServerAddress;
 import net.minecraft.client.network.ServerInfo;
 import net.minecraft.text.Text;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -491,17 +497,43 @@ public class CustomServerListScreen extends Screen {
      * A full implementation would read/write servers.dat via ServerList.
      */
     private void loadUserServers() {
-        // TODO: integrate with net.minecraft.client.network.ServerList
-        // to persist user servers to servers.dat so they survive restarts.
-        //
-        // Example:
-        //   ServerList list = new ServerList(MinecraftClient.getInstance());
-        //   list.loadFile();
-        //   for (int i = 0; i < list.size(); i++) userServers.add(...);
+        Path file = getSaveFile();
+        if (!Files.exists(file)) return;
+
+        try {
+            String json = Files.readString(file);
+            JsonArray array = new Gson().fromJson(json, JsonArray.class);
+            if (array == null) return;
+
+
+            for (int i = 0; i < array.size(); i++) {
+                JsonObject obj = array.get(i).getAsJsonObject();
+                String name = obj.get("name").getAsString();
+                String address = obj.get("address").getAsString();
+                userServers.add(new UserServer(name, address));
+            }
+        } catch (Exception exception) {
+            System.err.println("[VoxelClient] Server laden fehlgeschlagen: " + exception.getMessage());
+        }
     }
 
     private void saveUserServers() {
-        // TODO: write back to servers.dat
+        try {
+            JsonArray array = new JsonArray();
+            for (UserServer server : userServers) {
+                JsonObject obj = new JsonObject();
+                obj.addProperty("name", server.name);
+                obj.addProperty("address", server.address);
+                array.add(obj);
+            }
+            Files.writeString(getSaveFile(), new Gson().toJson(array));
+        } catch (Exception exception) {
+            System.err.println("[VoxelClient] Server speichern fehlgeschlagen: " + exception.getMessage());
+        }
+    }
+
+    private static Path getSaveFile() {
+        return MinecraftClient.getInstance().runDirectory.toPath().resolve("voxelclient_servers.json");
     }
 
     // ── Data classes ──────────────────────────────────────────────────────────
