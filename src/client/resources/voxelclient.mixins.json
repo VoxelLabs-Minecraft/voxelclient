@@ -7,7 +7,9 @@
     "MouseMixin",
     "CapeFeatureRendererMixin",
     "TitleScreenMixin",
-    "MultiplayerScreenMixin"
+    "MultiplayerScreenMixin",
+    "PlayerListHudMixin",
+    "PlayerNameTagMixin"
   ],
   "injectors": {
     "defaultRequire": 0
