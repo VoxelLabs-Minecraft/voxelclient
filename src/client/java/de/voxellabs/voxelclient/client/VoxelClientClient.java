@@ -10,6 +10,7 @@ import de.voxellabs.voxelclient.client.gui.ClientModScreen;
 import de.voxellabs.voxelclient.client.gui.CustomMainMenuScreen;
 import de.voxellabs.voxelclient.client.gui.CustomServerListScreen;
 import de.voxellabs.voxelclient.client.hud.HudRenderer;
+import de.voxellabs.voxelclient.client.utils.VoxelClientNetwork;
 import de.voxellabs.voxelclient.client.version.VersionChecker;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
@@ -43,11 +44,17 @@ public class VoxelClientClient implements ClientModInitializer {
     public void onInitializeClient() {
         System.out.println("[VoxelClient] ▶ Starting VoxelClient v" + MOD_VERSION + " (Minecraft 1.21.x / Fabric)");
 
+        //0.5 Load Networking methods for handshake
+        VoxelClientNetwork.init();
+
         //1. Load configuration from disk
         VoxelClientConfig.load();
 
         //2. Update-Check asynchron
         VersionChecker.checkForUpdate();
+
+        //2.5 Init discordrpc
+        DiscordRPCManager.init();
 
         keyOpenMenu = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "key.voxelclient.openMenu",
@@ -75,6 +82,27 @@ public class VoxelClientClient implements ClientModInitializer {
         ZoomFeature.init(keyZoom);
         FreelookFeature.init(keyFreeLook);
 
+        initLifeCylceListeners();
+
+        initClientTickListeners();
+
+        initClientConnectionListeners();
+
+        System.out.println("[VoxelClient] ✔ Initialisation complete!");
+        System.out.println("[VoxelClient]   Pinned servers: Plantaria.net, ave.rip");
+        System.out.println("[VoxelClient]   Update-Check läuft im Hintergrund…");
+        System.out.println("[VoxelClient]   Press RIGHT SHIFT in-game to open settings.");
+
+        showDiscordRichPresence();
+    }
+
+    public void initLifeCylceListeners() {
+        ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
+            DiscordRPCManager.showMainMenu();
+        });
+    }
+
+    public void initClientTickListeners() {
         ClientTickEvents.START_CLIENT_TICK.register(client -> {
             // TitleScreen → CustomMainMenuScreen
             if (client.currentScreen instanceof TitleScreen && client.world == null) {
@@ -124,7 +152,9 @@ public class VoxelClientClient implements ClientModInitializer {
                 }
             }
         });
+    }
 
+    public void initClientConnectionListeners() {
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             client.execute(() -> {
                 // Eigene UUID sofort vorladen
@@ -136,12 +166,6 @@ public class VoxelClientClient implements ClientModInitializer {
             });
         });
 
-        System.out.println("[VoxelClient] ✔ Initialisation complete!");
-        System.out.println("[VoxelClient]   Pinned servers: Plantaria.net, ave.rip");
-        System.out.println("[VoxelClient]   Update-Check läuft im Hintergrund…");
-        System.out.println("[VoxelClient]   Press RIGHT SHIFT in-game to open settings.");
-
-        showDiscordRichPresence();
     }
 
     public void showDiscordRichPresence() {
