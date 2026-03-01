@@ -1,10 +1,10 @@
 package de.voxellabs.voxelclient.client.mixin;
 
-import de.voxellabs.voxelclient.client.badge.BadgeRenderer;
+import de.voxellabs.voxelclient.client.badge.BadgeApiClient;
+import de.voxellabs.voxelclient.client.utils.VoxelClientNetwork;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.render.entity.PlayerEntityRenderer;
 import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
-import net.minecraft.text.Text;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -30,13 +30,17 @@ public abstract class PlayerNameTagMixin {
                              float tickDelta,
                              CallbackInfo ci) {
 
-        // name ist null wenn der Nametag nicht angezeigt werden soll (z.B. unsichtbar)
         if (state.name == null) return;
 
         UUID uuid = entity.getUuid();
-        String badge = BadgeRenderer.getBadgeString(uuid);
 
-        // Badge vor den bestehenden Namen stellen
-        state.name = badge + state.name;
+        if (!VoxelClientNetwork.isVoxelUser(uuid)) return;
+
+        BadgeApiClient.CachedBadge badge = BadgeApiClient.getBadge(uuid);
+        if (badge == null) return;
+
+        String prefix =  BadgeApiClient.getBadgeString(uuid);
+        if (!state.name.startsWith(prefix))
+            state.name = prefix + state.name;
     }
 }
