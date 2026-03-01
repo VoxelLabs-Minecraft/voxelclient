@@ -3,13 +3,14 @@
   "package": "de.voxellabs.voxelclient.client.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
+    "CapeFeatureRendererMixin",
     "GameRendererMixin",
     "MouseMixin",
-    "CapeFeatureRendererMixin",
-    "TitleScreenMixin",
     "MultiplayerScreenMixin",
     "PlayerListHudMixin",
-    "PlayerNameTagMixin"
+    "PlayerNameTagMixin",
+    "TitleScreenMixin",
+    "WindowTitleMixin"
   ],
   "injectors": {
     "defaultRequire": 0
