@@ -1,4 +1,4 @@
-name: Auto Release & Changelog
+name: Minecraft Mod Release
 
 on:
   push:
@@ -7,17 +7,80 @@ on:
 
 permissions:
   contents: write
-  pull-requests: write
 
 jobs:
   release:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Generate Release
-        uses: googleapis/release-please-action@v4
         with:
-          release-type: simple
+          fetch-depth: 0
+
+      - name: Detect version change
+        id: versioncheck
+        run: |
+          if git diff HEAD^ HEAD -- gradle.properties | grep mod_version
+          then
+            echo "release=true" >> $GITHUB_OUTPUT
+          else
+            echo "release=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Stop if no release
+        if: steps.versioncheck.outputs.release == 'false'
+        run: |
+          echo "No version change detected."
+          exit 0
+
+      - name: Read version
+        if: steps.versioncheck.outputs.release == 'true'
+        id: version
+        run: |
+          VERSION=$(grep "^mod_version=" gradle.properties | cut -d'=' -f2)
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Setup Java
+        if: steps.versioncheck.outputs.release == 'true'
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Gradle permissions
+        if: steps.versioncheck.outputs.release == 'true'
+        run: chmod +x gradlew
+
+      - name: Build mod
+        if: steps.versioncheck.outputs.release == 'true'
+        run: ./gradlew build
+
+      - name: Create GitHub Release
+        if: steps.versioncheck.outputs.release == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.version }}
+          name: VoxelClient ${{ steps.version.outputs.version }}
+          generate_release_notes: true
+          files: build/libs/*.jar
+
+      - name: Upload to Modrinth
+        if: steps.versioncheck.outputs.release == 'true'
+        uses: Kir-Antipov/mc-publish@v3
+        with:
+          modrinth-id: YOUR_MODRINTH_ID
+          modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
+          files: build/libs/*.jar
+          version: ${{ steps.version.outputs.version }}
+          name: VoxelClient ${{ steps.version.outputs.version }}
+
+#      - name: Upload to CurseForge
+#        if: steps.versioncheck.outputs.release == 'true'
+#        uses: Kir-Antipov/mc-publish@v3
+#        with:
+#          curseforge-id: YOUR_CURSEFORGE_ID
+#          curseforge-token: ${{ secrets.CURSEFORGE_TOKEN }}
+#          files: build/libs/*.jar
+#          version: ${{ steps.version.outputs.version }}
+#          name: VoxelClient ${{ steps.version.outputs.version }}
