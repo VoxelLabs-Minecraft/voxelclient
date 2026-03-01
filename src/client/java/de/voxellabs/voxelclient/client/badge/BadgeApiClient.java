@@ -64,14 +64,18 @@ public final class BadgeApiClient {
 
     private static void fetchAndCache(UUID uuid) {
         try {
+            String uuidStr = uuid.toString().toLowerCase();
+
             HttpURLConnection conn = (HttpURLConnection)
-                    URI.create(API_BASE_URL + "/api/players/" + uuid).toURL().openConnection();
+                    URI.create(API_BASE_URL + "/api/players/" + uuidStr).toURL().openConnection();
             conn.setRequestMethod("GET");
             conn.setConnectTimeout(4_000);
             conn.setReadTimeout(4_000);
             conn.setRequestProperty("User-Agent", "VoxelClient-Mod/1.0");
 
-            if (conn.getResponseCode() != 200) {
+            int status = conn.getResponseCode();
+
+            if (status != 200) {
                 CACHE.put(uuid, NO_BADGE);
                 return;
             }
@@ -82,15 +86,18 @@ public final class BadgeApiClient {
                 json = JsonParser.parseReader(reader).getAsJsonObject();
             }
 
-            if (!json.has("badge_id") || json.get("badge_id").isJsonNull()) {
+            if (!json.has("badge_name") || json.get("badge_name").isJsonNull()) {
                 CACHE.put(uuid, NO_BADGE);
                 return;
             }
 
+            String badgeName = getStr(json, "badge_name");
+            String color     = getStr(json, "color");
+
             CACHE.put(uuid, new CachedBadge(
-                    getStr(json, "badge_name"),
+                    badgeName,
                     getStr(json, "display"),
-                    getStr(json, "color"),
+                    color,
                     getStr(json, "icon"),
                     System.currentTimeMillis()
             ));

@@ -1,5 +1,6 @@
 package de.voxellabs.voxelclient.client;
 
+import de.voxellabs.voxelclient.client.badge.BadgeApiClient;
 import de.voxellabs.voxelclient.client.config.VoxelClientConfig;
 import de.voxellabs.voxelclient.client.cosmetics.CosmeticsManager;
 import de.voxellabs.voxelclient.client.discord.DiscordRPCManager;
@@ -28,6 +29,7 @@ import org.lwjgl.system.MemoryStack;
 
 import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.util.UUID;
 
 public class VoxelClientClient implements ClientModInitializer {
 
@@ -48,21 +50,21 @@ public class VoxelClientClient implements ClientModInitializer {
         VersionChecker.checkForUpdate();
 
         keyOpenMenu = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.myclient.openMenu",
+                "key.voxelclient.openMenu",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_RIGHT_SHIFT,
                 "key.categories.voxelclient"
         ));
 
         keyZoom = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.myclient.zoom",
+                "key.voxelclient.zoom",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_C,
                 "key.categories.voxelclient"
         ));
 
         keyFreeLook = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.myclient.freelook",
+                "key.voxelclient.freelook",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_LEFT_ALT,
                 "key.categories.voxelclient"
@@ -122,6 +124,18 @@ public class VoxelClientClient implements ClientModInitializer {
                 }
             }
         });
+
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            client.execute(() -> {
+                // Eigene UUID sofort vorladen
+                if (client.player != null) {
+                    UUID ownUuid = client.player.getUuid();
+                    // Einmal aufrufen damit der async Fetch startet
+                    BadgeApiClient.getBadge(ownUuid);
+                }
+            });
+        });
+
         System.out.println("[VoxelClient] ✔ Initialisation complete!");
         System.out.println("[VoxelClient]   Pinned servers: Plantaria.net, ave.rip");
         System.out.println("[VoxelClient]   Update-Check läuft im Hintergrund…");
