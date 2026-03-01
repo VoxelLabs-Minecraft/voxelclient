@@ -6,6 +6,8 @@ import de.voxellabs.voxelclient.client.discord.DiscordRPCManager;
 import de.voxellabs.voxelclient.client.features.FreelookFeature;
 import de.voxellabs.voxelclient.client.features.ZoomFeature;
 import de.voxellabs.voxelclient.client.gui.ClientModScreen;
+import de.voxellabs.voxelclient.client.gui.CustomMainMenuScreen;
+import de.voxellabs.voxelclient.client.gui.CustomServerListScreen;
 import de.voxellabs.voxelclient.client.hud.HudRenderer;
 import de.voxellabs.voxelclient.client.version.VersionChecker;
 import net.fabricmc.api.ClientModInitializer;
@@ -14,6 +16,8 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.screen.TitleScreen;
+import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.util.InputUtil;
@@ -69,6 +73,19 @@ public class VoxelClientClient implements ClientModInitializer {
 
         ZoomFeature.init(keyZoom);
         FreelookFeature.init(keyFreeLook);
+
+        ClientTickEvents.START_CLIENT_TICK.register(client -> {
+            // TitleScreen → CustomMainMenuScreen
+            if (client.currentScreen instanceof TitleScreen && client.world == null) {
+                client.setScreen(new CustomMainMenuScreen());
+                return;
+            }
+
+            // MultiplayerScreen → CustomServerListScreen
+            if (client.currentScreen instanceof MultiplayerScreen) {
+                client.setScreen(new CustomServerListScreen(null));
+            }
+        });
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (keyOpenMenu.wasPressed()) {
