@@ -1,5 +1,6 @@
 package de.voxellabs.voxelclient.client.gui;
 
+import de.voxellabs.voxelclient.client.discord.DiscordRPCManager;
 import de.voxellabs.voxelclient.client.version.VersionChecker;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
@@ -71,6 +72,7 @@ public class CustomMainMenuScreen extends Screen {
     // ── Init ──────────────────────────────────────────────────────────────────
     @Override
     protected void init() {
+        DiscordRPCManager.showMainMenu();
         int cx     = this.width / 2;
 
         int bannerOffset = VersionChecker.isUpdateAvailable() ? BANNER_H : 0;
@@ -90,11 +92,11 @@ public class CustomMainMenuScreen extends Screen {
                         btn -> this.client.setScreen(new CustomServerListScreen(this)))
                 .dimensions(cx - BTN_W / 2, startY + 24, BTN_W, BTN_H).build());
 
-//        addDrawableChild(ButtonWidget.builder(
-//                        Text.literal("✦  Minecraft Realms"),
-//                        btn -> this.client.setScreen(
-//                                new net.minecraft.client.gui.screen.realms.RealmsMainScreen(this)))
-//                .dimensions(cx - BTN_W / 2, startY + 48, BTN_W, BTN_H).build());
+        addDrawableChild(ButtonWidget.builder(
+                        Text.literal("✦  Minecraft Realms"),
+                        btn -> this.client.setScreen(
+                                new net.minecraft.client.realms.gui.screen.RealmsMainScreen(this)))
+                .dimensions(cx - BTN_W / 2, startY + 48, BTN_W, BTN_H).build());
 
         addDrawableChild(ButtonWidget.builder(
                         Text.literal("Options"),

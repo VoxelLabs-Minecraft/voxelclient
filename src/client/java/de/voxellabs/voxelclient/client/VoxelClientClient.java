@@ -2,6 +2,7 @@ package de.voxellabs.voxelclient.client;
 
 import de.voxellabs.voxelclient.client.config.VoxelClientConfig;
 import de.voxellabs.voxelclient.client.cosmetics.CosmeticsManager;
+import de.voxellabs.voxelclient.client.discord.DiscordRPCManager;
 import de.voxellabs.voxelclient.client.features.FreelookFeature;
 import de.voxellabs.voxelclient.client.features.ZoomFeature;
 import de.voxellabs.voxelclient.client.gui.ClientModScreen;
@@ -10,6 +11,7 @@ import de.voxellabs.voxelclient.client.version.VersionChecker;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
@@ -17,7 +19,6 @@ import org.lwjgl.glfw.GLFW;
 
 public class VoxelClientClient implements ClientModInitializer {
 
-    public static final String MOD_ID = "voxelclient";
     public static final String MOD_VERSION = VersionChecker.CURRENT_VERSION;
 
     public static KeyBinding keyOpenMenu;
@@ -78,9 +79,60 @@ public class VoxelClientClient implements ClientModInitializer {
                 }
             }
         });
+
+        // Set window title with branding when not in fullscreen
+        ClientTickEvents.END_CLIENT_TICK.register(new ClientTickEvents.EndTick() {
+            private boolean lastFullscreen = false;
+            private boolean initialized = false;
+
+            @Override
+            public void onEndTick(MinecraftClient client) {
+                boolean fullscreen = client.getWindow().isFullscreen();
+                if (!initialized || fullscreen != lastFullscreen) {
+                    initialized = true;
+                    lastFullscreen = fullscreen;
+                    if (!fullscreen) {
+                        client.getWindow().setTitle("VoxelClient v" + MOD_VERSION);
+                    }
+                }
+            }
+        });
         System.out.println("[VoxelClient] ✔ Initialisation complete!");
         System.out.println("[VoxelClient]   Pinned servers: Plantaria.net, ave.rip");
         System.out.println("[VoxelClient]   Update-Check läuft im Hintergrund…");
         System.out.println("[VoxelClient]   Press RIGHT SHIFT in-game to open settings.");
+
+        showDiscordRichPresence();
+    }
+
+    public void showDiscordRichPresence() {
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            client.execute(() -> {
+                // Singleplayer
+                if (client.isInSingleplayer()) {
+                    String worldName = client.getServer() != null
+                            ? client.getServer().getSaveProperties().getLevelName()
+                            : "Unbekannte Welt";
+                    DiscordRPCManager.showSingleplayer(worldName);
+                    return;
+                }
+
+                // Multiplayer / Realms
+                var serverEntry = client.getCurrentServerEntry();
+                if (serverEntry != null) {
+                    String address = serverEntry.address;
+                    String name    = serverEntry.name;
+
+                    if (address != null && address.endsWith(".realms.minecraft.net")) {
+                        DiscordRPCManager.showRealms(name);
+                    } else {
+                        DiscordRPCManager.showMultiplayer(name, address);
+                    }
+                }
+            });
+        });
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) ->
+                DiscordRPCManager.showMainMenu()
+        );
     }
 }
