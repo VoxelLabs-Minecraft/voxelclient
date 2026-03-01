@@ -98,7 +98,7 @@ Zum Testen direkt in Minecraft starten:
 
 ## 📄 Lizenz
 
-MIT License — siehe [LICENSE](LICENSE)
+MIT License — siehe [LICENSE](https://github.com/VoxelLabs-Minecraft/voxelclient/blob/main/LICENSE.txt)
 
 ---
 
