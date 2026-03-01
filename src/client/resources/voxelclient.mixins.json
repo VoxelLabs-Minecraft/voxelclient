@@ -8,6 +8,7 @@
     "MouseMixin",
     "PlayerListHudMixin",
     "PlayerNameTagMixin",
+    "WindowIconMixin",
     "WindowTitleMixin"
   ],
   "injectors": {
