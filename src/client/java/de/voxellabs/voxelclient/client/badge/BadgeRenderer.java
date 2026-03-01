@@ -2,7 +2,7 @@ package de.voxellabs.voxelclient.client.badge;
 
 import net.minecraft.client.font.TextRenderer;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.util.Identifier;
+
 import java.util.UUID;
 
 /**
@@ -83,8 +83,6 @@ public final class BadgeRenderer {
      * @return Formatierter String mit Badge-Zeichen
      */
     public static String getBadgeString(UUID uuid) {
-        boolean isCreator = CreatorList.isCreator(uuid);
-        // §4 = dunkelrot, §7 = grau
-        return isCreator ? "§4✦ §r" : "§7✦ §r";
+        return BadgeApiClient.getBadgeString(uuid);
     }
 }
