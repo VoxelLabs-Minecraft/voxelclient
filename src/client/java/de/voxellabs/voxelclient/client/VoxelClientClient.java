@@ -21,15 +21,8 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.TitleScreen;
 import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
 import net.minecraft.client.option.KeyBinding;
-import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.util.InputUtil;
-import org.lwjgl.BufferUtils;
 import org.lwjgl.glfw.GLFW;
-import org.lwjgl.glfw.GLFWImage;
-import org.lwjgl.system.MemoryStack;
-
-import java.io.InputStream;
-import java.nio.ByteBuffer;
 import java.util.UUID;
 
 public class VoxelClientClient implements ClientModInitializer {
