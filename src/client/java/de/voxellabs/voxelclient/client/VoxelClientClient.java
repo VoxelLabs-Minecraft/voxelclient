@@ -57,24 +57,24 @@ public class VoxelClientClient implements ClientModInitializer {
         DiscordRPCManager.init();
 
         keyOpenMenu = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.voxelclient.openMenu",
+                "voxelclient.key.openMenu",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_RIGHT_SHIFT,
-                "key.categories.voxelclient"
+                "voxelclient.key.category"
         ));
 
         keyZoom = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.voxelclient.zoom",
+                "voxelclient.key.zoom",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_C,
-                "key.categories.voxelclient"
+                "voxelclient.key.category"
         ));
 
         keyFreeLook = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-                "key.voxelclient.freelook",
+                "voxelclient.key.freelook",
                 InputUtil.Type.KEYSYM,
                 GLFW.GLFW_KEY_LEFT_ALT,
-                "key.categories.voxelclient"
+                "voxelclient.key.category"
         ));
 
         HudRenderer.register();
