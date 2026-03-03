@@ -1,6 +1,8 @@
 package de.voxellabs.voxelclient.client.cosmetics;
 
 import com.google.gson.Gson;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.network.AbstractClientPlayerEntity;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -12,26 +14,18 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 
-/**
- * Fragt https://api.voxellabs.de/cosmetics/{uuid} ab.
- * Alle Requests laufen asynchron — kein Blockieren des Render-Threads.
- */
 public class CosmeticsApiClient {
 
     private static final String BASE_URL = "https://api.voxellabs.de/api/cosmetics/";
     private static final Duration TIMEOUT = Duration.ofSeconds(5);
-
-    // Retry-Delay nach 429: 60 Sekunden
     private static final long RATE_LIMIT_BACKOFF_MS = 60_000;
 
-    private static final Map<UUID, CosmeticsApiResponse> CACHE     = new ConcurrentHashMap<>();
-    private static final Set<UUID> LOADING   = ConcurrentHashMap.newKeySet(); // <-- Set statt Map, atomar
-    private static final Map<UUID, Long>                  RATE_LIMITED = new ConcurrentHashMap<>();  // <-- neu: 429-Tracker
+    private static final Map<UUID, CosmeticsApiResponse>             CACHE        = new ConcurrentHashMap<>();
+    private static final Set<UUID>                                    LOADING      = ConcurrentHashMap.newKeySet();
+    private static final Map<UUID, Long>                              RATE_LIMITED = new ConcurrentHashMap<>();
     private static final Map<UUID, List<Consumer<CosmeticsApiResponse>>> CALLBACKS = new ConcurrentHashMap<>();
 
-    private static final HttpClient HTTP = HttpClient.newBuilder()
-            .connectTimeout(TIMEOUT)
-            .build();
+    private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(TIMEOUT).build();
     private static final Gson GSON = new Gson();
 
     public static CosmeticsApiResponse getCosmetics(UUID uuid) {
@@ -47,12 +41,12 @@ public class CosmeticsApiClient {
     public static void prefetch(UUID uuid) {
         if (CACHE.containsKey(uuid)) return;
 
-        // 429-Backoff: nicht nochmal versuchen solange Sperre aktiv
+        // 429-Backoff aktiv?
         Long blockedUntil = RATE_LIMITED.get(uuid);
         if (blockedUntil != null && System.currentTimeMillis() < blockedUntil) return;
 
-        // Atomar prüfen+eintragen – verhindert Race Condition
-        if (!LOADING.add(uuid)) return; // add() gibt false zurück wenn bereits drin
+        // LOADING.add() ist atomar – gibt false zurück wenn UUID bereits drin
+        if (!LOADING.add(uuid)) return;
 
         fetchAsync(uuid);
     }
@@ -78,6 +72,17 @@ public class CosmeticsApiClient {
         CALLBACKS.clear();
     }
 
+    /**
+     * Lädt Cosmetics für alle aktuell sichtbaren Spieler auf einmal.
+     * Nur einmalig aufrufen (z.B. beim Screen-Öffnen).
+     */
+    public static void loadAllVisible(MinecraftClient mc) {
+        if (mc.world == null) return;
+        for (AbstractClientPlayerEntity player : mc.world.getPlayers()) {
+            prefetch(player.getUuid());
+        }
+    }
+
     private static void fetchAsync(UUID uuid) {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(BASE_URL + uuid))
@@ -87,33 +92,30 @@ public class CosmeticsApiClient {
                 .GET()
                 .build();
 
-        CompletableFuture
-                .supplyAsync(() -> {
-                    try {
-                        HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
-                        if (response.statusCode() == 200) {
-                            return GSON.fromJson(response.body(), CosmeticsApiResponse.class);
-                        }
-                        if (response.statusCode() == 429) {
-                            // Backoff setzen – 60 Sekunden keine weiteren Versuche
-                            RATE_LIMITED.put(uuid, System.currentTimeMillis() + RATE_LIMIT_BACKOFF_MS);
-                            System.err.println("[VoxelClient] Rate-Limited für " + uuid + " – Retry in 60s");
-                        } else {
-                            System.err.println("[VoxelClient] Cosmetics API " + response.statusCode() + " für " + uuid);
-                        }
-                        return null;
-                    } catch (Exception e) {
-                        System.err.println("[VoxelClient] Cosmetics-API Fehler: " + e.getMessage());
-                        return null;
-                    }
-                })
-                .thenAccept(result -> {
-                    LOADING.remove(uuid);
-                    if (result != null) {
-                        CACHE.put(uuid, result);
-                        List<Consumer<CosmeticsApiResponse>> cbs = CALLBACKS.remove(uuid);
-                        if (cbs != null) cbs.forEach(cb -> cb.accept(result));
-                    }
-                });
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+                if (response.statusCode() == 200) {
+                    return GSON.fromJson(response.body(), CosmeticsApiResponse.class);
+                }
+                if (response.statusCode() == 429) {
+                    RATE_LIMITED.put(uuid, System.currentTimeMillis() + RATE_LIMIT_BACKOFF_MS);
+                    System.err.println("[VoxelClient] Rate-Limited für " + uuid + " – Retry in 60s");
+                } else {
+                    System.err.println("[VoxelClient] Cosmetics API " + response.statusCode() + " für " + uuid);
+                }
+                return null;
+            } catch (Exception e) {
+                System.err.println("[VoxelClient] Cosmetics-API Fehler: " + e.getMessage());
+                return null;
+            }
+        }).thenAccept(result -> {
+            LOADING.remove(uuid);
+            if (result != null) {
+                CACHE.put(uuid, result);
+                List<Consumer<CosmeticsApiResponse>> cbs = CALLBACKS.remove(uuid);
+                if (cbs != null) cbs.forEach(cb -> cb.accept(result));
+            }
+        });
     }
 }

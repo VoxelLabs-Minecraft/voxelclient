@@ -32,6 +32,6 @@ public abstract class CosmeticsRendererMixin
     private void captureUuid(AbstractClientPlayerEntity player,
                              PlayerEntityRenderState state,
                              float tickDelta, CallbackInfo ci) {
-        CosmeticsStateMap.put(state, player.getUuid());
+        CosmeticsStateMap.put(state, player.getUuid()); // NUR das!
     }
 }

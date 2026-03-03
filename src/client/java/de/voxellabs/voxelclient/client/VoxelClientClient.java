@@ -129,6 +129,7 @@ public class VoxelClientClient implements ClientModInitializer {
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (keyOpenMenu.wasPressed()) {
+                CosmeticsApiClient.loadAllVisible(MinecraftClient.getInstance());
                 client.setScreen(new ClientModScreen());
             }
         });
@@ -172,6 +173,7 @@ public class VoxelClientClient implements ClientModInitializer {
                 if (client.player != null) {
                     UUID ownUuid = client.player.getUuid();
                     // Einmal aufrufen damit der async Fetch startet
+                    CosmeticsApiClient.clearCache();
                     BadgeApiClient.getBadge(ownUuid);
                     CosmeticsApiClient.prefetch(ownUuid);
                 }
