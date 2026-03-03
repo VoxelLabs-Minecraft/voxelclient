@@ -25,6 +25,14 @@ public final class VoxelClientNetwork {
         return VOXEL_USERS.contains(uuid);
     }
 
+    public static void addVoxelUser(UUID uuid) {
+        VOXEL_USERS.add(uuid);
+    }
+
+    public static void removeVoxelUser(UUID uuid) {
+        VOXEL_USERS.remove(uuid);
+    }
+
     /**
      * Initialisiert das Netzwerk-System.
      * Aufruf in VoxelClientModClient.onInitializeClient()
@@ -42,28 +50,24 @@ public final class VoxelClientNetwork {
                     UUID sender = payload.uuid();
                     VOXEL_USERS.add(sender);
 
-                    // Badge asynchron vorladen
-                    BadgeApiClient.getBadge(sender);
+                    // Badge jetzt laden da isVoxelUser() nun true zurückgibt
+                    BadgeApiClient.prefetch(sender);
                 }
         );
 
         // Beim Server-Join: eigenes Paket senden + eigene UUID registrieren
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             if (client.player == null) return;
-
             UUID ownUuid = client.player.getUuid();
             VOXEL_USERS.add(ownUuid);
-
-            // Allen anderen VoxelClient-Nutzern mitteilen, dass wir da sind
             ClientPlayNetworking.send(new HandshakePayload(ownUuid));
-
-            // Eigenes Badge vorladen
-            BadgeApiClient.getBadge(ownUuid);
+            BadgeApiClient.prefetch(ownUuid); // sofort laden
         });
 
         // Beim Disconnect: Liste leeren
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) ->
-                VOXEL_USERS.clear()
-        );
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            VOXEL_USERS.clear();
+            // Badge-Cache muss nicht geleert werden – TTL von 5min ist ok
+        });
     }
 }

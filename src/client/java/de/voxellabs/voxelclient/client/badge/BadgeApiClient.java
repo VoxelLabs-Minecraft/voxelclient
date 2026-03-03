@@ -9,13 +9,16 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Consumer;
 
 public final class BadgeApiClient {
 
     public static final String API_BASE_URL = "https://api.voxellabs.de";
     private static final long CACHE_TTL_MS = 5 * 60 * 1000L;
+    private static final Set<UUID> LOADING = ConcurrentHashMap.newKeySet();
 
     // ── CachedBadge als normale Klasse statt Record ───────────────────────────
     public static class CachedBadge {
@@ -47,21 +50,29 @@ public final class BadgeApiClient {
     private BadgeApiClient() {}
 
     public static CachedBadge getBadge(UUID uuid) {
-        // Nur abfragen, wenn Spieler VoxelClient nutzt
-        if (VoxelClientNetwork.isVoxelUser(uuid)) return null;
-
-        CachedBadge cached = CACHE.get(uuid);
-        if (cached == null || cached.isExpired()) {
+        CachedBadge cachedBadge = CACHE.get(uuid);
+        if (cachedBadge == null || cachedBadge.isExpired()) {
             Thread.ofVirtual().start(() -> fetchAndCache(uuid));
-            return (cached == null || cached == NO_BADGE) ? null : cached;
+            return (cachedBadge == null || cachedBadge == NO_BADGE) ? null : cachedBadge;
         }
-        return cached == NO_BADGE ? null : cached;
+        return cachedBadge == NO_BADGE ? null : cachedBadge;
     }
 
     public static String getBadgeString(UUID uuid) {
         CachedBadge badge = getBadge(uuid);
         if (badge == null) return "§7✦ §r";
         return formatColorCode(badge.color) + (badge.icon != null ? badge.icon : "✦") + " §r";
+    }
+
+    public static void prefetch(UUID uuid) {
+        CachedBadge cachedBadge = CACHE.get(uuid);
+        if (cachedBadge != null && !cachedBadge.isExpired()) return;
+        if (!LOADING.add(uuid)) return;
+        // Direkt laden ohne isVoxelUser-Check
+        Thread.ofVirtual().start(() -> {
+            fetchAndCache(uuid);
+            LOADING.remove(uuid);
+        });
     }
 
     private static void fetchAndCache(UUID uuid) {
@@ -103,7 +114,7 @@ public final class BadgeApiClient {
                     getStr(json, "icon"),
                     System.currentTimeMillis()
             ));
-
+            VoxelClientNetwork.addVoxelUser(uuid);
         } catch (Exception e) {
             if (CreatorList.isCreator(uuid)) {
                 CACHE.put(uuid, new CachedBadge(
@@ -113,6 +124,19 @@ public final class BadgeApiClient {
                 CACHE.put(uuid, NO_BADGE);
             }
         }
+    }
+
+    public static void fetchWithCallback(UUID uuid, Consumer<CachedBadge> callback) {
+        CachedBadge cached = CACHE.get(uuid);
+        if (cached != null && !cached.isExpired()) {
+            callback.accept(cached == NO_BADGE ? null : cached);
+            return;
+        }
+        Thread.ofVirtual().start(() -> {
+            fetchAndCache(uuid);
+            CachedBadge result = CACHE.get(uuid);
+            callback.accept(result == null || result == NO_BADGE ? null : result);
+        });
     }
 
     private static String formatColorCode(String hex) {

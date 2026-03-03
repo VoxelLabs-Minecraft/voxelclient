@@ -1,4 +1,4 @@
-package de.voxellabs.voxelclient.client.mixin.ui;
+package de.voxellabs.voxelclient.client.mixin.entity;
 
 import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import de.voxellabs.voxelclient.client.badge.BadgeApiClient;
@@ -33,7 +33,7 @@ public abstract class PlayerListHudMixin {
     )
     private Text injectBadge(Text original, PlayerListEntry entry) {
         UUID uuid = entry.getProfile().getId();
-        if (VoxelClientNetwork.isVoxelUser(uuid)) return original;
+        if (!VoxelClientNetwork.isVoxelUser(uuid)) return original;
 
         BadgeApiClient.CachedBadge badge = BadgeApiClient.getBadge(uuid);
         if (badge == null) return original;

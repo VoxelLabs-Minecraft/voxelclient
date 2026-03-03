@@ -1,4 +1,4 @@
-package de.voxellabs.voxelclient.client.mixin.ui;
+package de.voxellabs.voxelclient.client.mixin.entity;
 
 import de.voxellabs.voxelclient.client.badge.BadgeApiClient;
 import de.voxellabs.voxelclient.client.utils.VoxelClientNetwork;
@@ -34,7 +34,7 @@ public abstract class PlayerNameTagMixin {
 
         UUID uuid = entity.getUuid();
 
-        if (VoxelClientNetwork.isVoxelUser(uuid)) return;
+        if (!VoxelClientNetwork.isVoxelUser(uuid)) return;
 
         BadgeApiClient.CachedBadge badge = BadgeApiClient.getBadge(uuid);
         if (badge == null) return;

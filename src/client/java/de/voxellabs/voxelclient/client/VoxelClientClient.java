@@ -14,6 +14,7 @@ import de.voxellabs.voxelclient.client.ui.module.utility.FreelookFeature;
 import de.voxellabs.voxelclient.client.ui.module.utility.ZoomFeature;
 import de.voxellabs.voxelclient.client.ui.gui.ClientModScreen;
 import de.voxellabs.voxelclient.client.ui.hud.DraggableHudSystem;
+import de.voxellabs.voxelclient.client.utils.HandshakePayload;
 import de.voxellabs.voxelclient.client.utils.VoxelClientNetwork;
 import de.voxellabs.voxelclient.client.version.VersionChecker;
 import net.fabricmc.api.ClientModInitializer;
@@ -22,6 +23,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.option.KeyBinding;
@@ -120,6 +122,7 @@ public class VoxelClientClient implements ClientModInitializer {
         ClientEntityEvents.ENTITY_LOAD.register((client, entity) -> {
             if (client instanceof AbstractClientPlayerEntity player) {
                 CosmeticsApiClient.prefetch(player.getUuid());
+                BadgeApiClient.prefetch(player.getUuid());
             }
         });
 
@@ -131,19 +134,6 @@ public class VoxelClientClient implements ClientModInitializer {
             if (keyOpenMenu.wasPressed()) {
                 CosmeticsApiClient.loadAllVisible(MinecraftClient.getInstance());
                 client.setScreen(new ClientModScreen());
-            }
-        });
-
-        ClientTickEvents.END_CLIENT_TICK.register(new ClientTickEvents.EndTick() {
-            private int delay = 20; // wait 1 second (20 ticks)
-            private boolean done = false;
-
-            @Override
-            public void onEndTick(MinecraftClient client) {
-                if (!done && client.player != null && delay-- <= 0) {
-                    CosmeticsManager.loadCosmetics(client.player.getUuid());
-                    done = true;
-                }
             }
         });
 
@@ -174,7 +164,6 @@ public class VoxelClientClient implements ClientModInitializer {
                     UUID ownUuid = client.player.getUuid();
                     // Einmal aufrufen damit der async Fetch startet
                     CosmeticsApiClient.clearCache();
-                    BadgeApiClient.getBadge(ownUuid);
                     CosmeticsApiClient.prefetch(ownUuid);
                 }
             });
