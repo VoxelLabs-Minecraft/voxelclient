@@ -18,8 +18,7 @@ public final class CreatorList {
      * ↓ Hier deine eigene UUID + weitere Creatoren eintragen
      */
     private static final Set<UUID> CREATORS = Set.of(
-            UUID.fromString("00000000-0000-0000-0000-000000000000"), // ← deine UUID
-            UUID.fromString("00000000-0000-0000-0000-000000000001")  // ← weiterer Creator
+            UUID.fromString("f4d7e09c-7e16-498a-b73f-4dac4cc2d6b9") // ← deine UUID
     );
 
     private CreatorList() {}

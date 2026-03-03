@@ -11,13 +11,12 @@
     "ui.GameRendererMixin",
     "ui.MutliplayerScreenMixin",
     "ui.OwnNameTagMixin",
-    "ui.PlayerListHudMixin",
-    "ui.PlayerNameTagMixin",
+    "entity.PlayerListHudMixin",
+    "entity.PlayerNameTagMixin",
     "ui.TitleScreenMixin",
     "ui.WindowIconMixin",
     "ui.WindowTitleMixin",
     "entity.LivingEntityRendererAccessor",
-    "entity.PlayerEntityRendererMixin",
     "entity.PlayerRenderStateMixin"
   ],
   "injectors": {
