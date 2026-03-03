@@ -1,8 +1,9 @@
-package de.voxellabs.voxelclient.client.gui;
+package de.voxellabs.voxelclient.client.ui.gui;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import de.voxellabs.voxelclient.client.ui.animation.AnimatedScreen;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
@@ -20,24 +21,20 @@ import java.util.Base64;
 import java.io.DataOutputStream;
 import java.net.InetSocketAddress;
 import java.net.Socket;
-import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-public class CustomServerListScreen extends Screen {
+public class CustomServerListScreen extends AnimatedScreen {
 
     // ── Pinned Servers ────────────────────────────────────────────────────────
     private static final PinnedServer[] PINNED = {
             new PinnedServer("ave.rip Network",  "ave.rip",       "§cPlay • Fight • Conquer", 0xFF3498DB),
             new PinnedServer("Plantaria.net",    "plantaria.net", "§aRoots • Worlds • Adventure",  0xFF2ECC71)
+            // new PinnedServer("Plantaria.net",    "plantaria.net", "§aRoots • Worlds • Adventure",  0xFF2ECC71)
     };
 
     // ── MOTD Cache ────────────────────────────────────────────────────────────
@@ -127,7 +124,7 @@ public class CustomServerListScreen extends Screen {
 
     // ── Render ────────────────────────────────────────────────────────────────
     @Override
-    public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
+    public void renderContent(DrawContext ctx, int mouseX, int mouseY, float delta, float progress) {
         ctx.fillGradient(0, 0, this.width, this.height, 0xFF0d0d1a, 0xFF08080f);
         ctx.drawCenteredTextWithShadow(this.textRenderer,
                 Text.literal("§f⚡  Server List"), this.width / 2, 10, 0xFFFFFF);
@@ -136,7 +133,7 @@ public class CustomServerListScreen extends Screen {
         if (addingServer) renderAddServerForm(ctx, mouseX, mouseY);
         else              renderServerList(ctx, mouseX, mouseY);
 
-        super.render(ctx, mouseX, mouseY, delta);
+        super.renderContent(ctx, mouseX, mouseY, delta, progress);
     }
 
     private void refreshServers() {

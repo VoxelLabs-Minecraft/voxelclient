@@ -1,4 +1,4 @@
-package de.voxellabs.voxelclient.client.features;
+package de.voxellabs.voxelclient.client.ui.module.utility;
 
 import de.voxellabs.voxelclient.client.config.VoxelClientConfig;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -12,7 +12,6 @@ public class ZoomFeature {
 
     private static boolean zooming       = false;
     private static double  currentFov    = -1;     // -1 means not initialised yet
-    private static double  targetFov     = -1;
     private static double  scrollOffset  = 0.0;    // adjusted by scroll wheel
 
     private static KeyBinding zoomKey;
@@ -55,8 +54,7 @@ public class ZoomFeature {
 
         if (cfg.zoomSmoothZoom) {
             if (currentFov < 0) currentFov = originalFov;
-            targetFov = zoomFovTarget;
-            currentFov = lerp(currentFov, targetFov, 0.25);
+            currentFov = lerp(currentFov, zoomFovTarget, 0.25);
             return currentFov;
         }
 

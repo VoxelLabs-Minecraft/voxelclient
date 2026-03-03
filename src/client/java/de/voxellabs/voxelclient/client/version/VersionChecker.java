@@ -21,7 +21,7 @@ import java.util.concurrent.CompletableFuture;
  *     hinterlegten {@link #CURRENT_VERSION} verglichen.
  *  4. Wenn eine neuere Version vorliegt, werden {@link #updateAvailable}
  *     und {@link #latestVersion} gesetzt.
- *  5. {@link de.voxellabs.voxelclient.client.gui.CustomMainMenuScreen} liest diese Flags
+ *  5. {@link de.voxellabs.voxelclient.client.ui.gui.CustomMainMenuScreen} liest diese Flags
  *     aus und zeigt ein Banner an.
  *
  * ──────────────────────────────────────────────────────────────────────

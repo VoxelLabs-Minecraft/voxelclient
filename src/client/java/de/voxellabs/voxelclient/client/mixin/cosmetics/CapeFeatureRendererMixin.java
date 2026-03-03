@@ -1,7 +1,7 @@
-package de.voxellabs.voxelclient.client.mixin;
+package de.voxellabs.voxelclient.client.mixin.cosmetics;
 
 import de.voxellabs.voxelclient.client.cosmetics.CosmeticsManager;
-import net.minecraft.client.network.AbstractClientPlayerEntity;
+import de.voxellabs.voxelclient.client.utils.RenderStateUuidCache;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.entity.feature.CapeFeatureRenderer;
 import net.minecraft.client.render.entity.state.PlayerEntityRenderState;
@@ -11,6 +11,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import java.util.UUID;
 
 /**
  * Injects a custom cape texture override into the vanilla CapeFeatureRenderer.
@@ -36,8 +37,14 @@ public abstract class CapeFeatureRendererMixin {
             at = @At("HEAD"),
             cancellable = true
     )
-    private void onRender(MatrixStack matrixStack, VertexConsumerProvider vertexConsumerProvider, int i, PlayerEntityRenderState playerEntityRenderState, float f, float g, CallbackInfo ci) {
-        Identifier capeTexture = CosmeticsManager.getCapeTexture();
+    private void onRender(MatrixStack matrixStack, VertexConsumerProvider vertexConsumerProvider,
+                          int i, PlayerEntityRenderState playerEntityRenderState,
+                          float f, float g, CallbackInfo ci) {
+
+        UUID uuid = RenderStateUuidCache.get(playerEntityRenderState);
+        if (uuid == null) return;
+
+        Identifier capeTexture = CosmeticsManager.getCapeTexture(uuid);
         if (capeTexture == null) return;
         // TODO: Cape-Geometrie mit capeTexture rendern
     }

@@ -48,7 +48,7 @@ public final class BadgeApiClient {
 
     public static CachedBadge getBadge(UUID uuid) {
         // Nur abfragen, wenn Spieler VoxelClient nutzt
-        if (!VoxelClientNetwork.isVoxelUser(uuid)) return null;
+        if (VoxelClientNetwork.isVoxelUser(uuid)) return null;
 
         CachedBadge cached = CACHE.get(uuid);
         if (cached == null || cached.isExpired()) {

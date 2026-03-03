@@ -1,4 +1,4 @@
-package de.voxellabs.voxelclient.client.features;
+package de.voxellabs.voxelclient.client.ui.module.utility;
 
 import de.voxellabs.voxelclient.client.config.VoxelClientConfig;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;

@@ -1,6 +1,6 @@
-package de.voxellabs.voxelclient.client.mixin;
+package de.voxellabs.voxelclient.client.mixin.ui;
 
-import de.voxellabs.voxelclient.client.features.ZoomFeature;
+import de.voxellabs.voxelclient.client.ui.module.utility.ZoomFeature;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.Camera;
 import org.spongepowered.asm.mixin.Mixin;

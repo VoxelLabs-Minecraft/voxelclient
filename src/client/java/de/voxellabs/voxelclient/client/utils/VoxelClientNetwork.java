@@ -4,7 +4,6 @@ import de.voxellabs.voxelclient.client.badge.BadgeApiClient;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.minecraft.util.Identifier;
 
 import java.util.Collections;
 import java.util.Set;
@@ -12,10 +11,6 @@ import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 public final class VoxelClientNetwork {
-
-    // ── Packet ID ─────────────────────────────────────────────────────────────
-    public static final Identifier CHANNEL =
-            Identifier.of("voxelclient", "handshake");
 
     // ── Set aller Spieler die VoxelClient nutzen ──────────────────────────────
     private static final Set<UUID> VOXEL_USERS =
@@ -25,7 +20,6 @@ public final class VoxelClientNetwork {
 
     /**
      * Gibt zurück, ob ein Spieler VoxelClient nutzt.
-     * Nur für diese Spieler wird die Badge-API abgefragt.
      */
     public static boolean isVoxelUser(UUID uuid) {
         return VOXEL_USERS.contains(uuid);
@@ -37,15 +31,9 @@ public final class VoxelClientNetwork {
      */
     public static void init() {
 
-        // Payload registrieren
-        PayloadTypeRegistry.playC2S().register(
-                HandshakePayload.ID,
-                HandshakePayload.CODEC
-        );
-        PayloadTypeRegistry.playS2C().register(
-                HandshakePayload.ID,
-                HandshakePayload.CODEC
-        );
+        // Payload registrieren – ID kommt aus HandshakePayload
+        PayloadTypeRegistry.playC2S().register(HandshakePayload.ID, HandshakePayload.CODEC);
+        PayloadTypeRegistry.playS2C().register(HandshakePayload.ID, HandshakePayload.CODEC);
 
         // Eingehende Pakete empfangen (anderer Spieler hat VoxelClient)
         ClientPlayNetworking.registerGlobalReceiver(

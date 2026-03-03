@@ -34,5 +34,8 @@
   "voxelclient.key.openMenu":     "Open VoxelClient Menu",
   "voxelclient.key.zoom":         "Zoom",
   "voxelclient.key.freelook":     "Freelook",
-  "voxelclient.key.category":     "VoxelClient"
+  "voxelclient.key.category":     "VoxelClient",
+  "key.voxelclient.toggle_sprint": "Toggle Sprint",
+  "key.voxelclient.toggle_sneak": "Toggle Sneak",
+  "key.voxelclient.snap_look": "Snap Look"
 }

@@ -1,9 +1,9 @@
-package de.voxellabs.voxelclient.client.gui;
+package de.voxellabs.voxelclient.client.ui.gui;
 
 import de.voxellabs.voxelclient.client.discord.DiscordRPCManager;
+import de.voxellabs.voxelclient.client.ui.animation.AnimatedScreen;
 import de.voxellabs.voxelclient.client.version.VersionChecker;
 import net.minecraft.client.gui.DrawContext;
-import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.gui.screen.option.OptionsScreen;
 import net.minecraft.client.gui.widget.ButtonWidget;
 import net.minecraft.client.render.RenderLayer;
@@ -29,7 +29,7 @@ import net.minecraft.util.math.MathHelper;
  *   │  MyClient v0.0.1          Plantaria.net ♥ ave.rip       │
  *   └─────────────────────────────────────────────────────────┘
  */
-public class CustomMainMenuScreen extends Screen {
+public class CustomMainMenuScreen extends AnimatedScreen {
 
     // ── Konstanten ────────────────────────────────────────────────────────────
     private static final String BRANDING_LEFT  = "VoxelClient v" + VersionChecker.CURRENT_VERSION;
@@ -114,24 +114,24 @@ public class CustomMainMenuScreen extends Screen {
         // ── Settings-Button (oben rechts) ─────────────────────────────────────
         addDrawableChild(ButtonWidget.builder(
                         Text.literal("⚙"),
-                        btn -> this.client.setScreen(new ClientModScreen(this)))
+                        btn -> this.client.setScreen(new ClientModScreen()))
                 .dimensions(this.width - 24, 4, 20, 20).build());
 
         // ── Update-Banner-Button (nur wenn Update verfügbar) ─────────────────
-        if (VersionChecker.isUpdateAvailable()) {
-            String label = "§e⬆ Update auf v" + VersionChecker.getLatestVersion()
-                    + " verfügbar – Hier klicken zum Herunterladen";
-
-            addDrawableChild(ButtonWidget.builder(
-                            Text.literal(label),
-                            btn -> openDownloadPage())
-                    .dimensions(0, 0, this.width, BANNER_H).build());
-        }
+//        if (VersionChecker.isUpdateAvailable()) {
+//            String label = "§e⬆ Update auf v" + VersionChecker.getLatestVersion()
+//                    + " verfügbar – Hier klicken zum Herunterladen";
+//
+//            addDrawableChild(ButtonWidget.builder(
+//                            Text.literal(label),
+//                            btn -> openDownloadPage())
+//                    .dimensions(0, 0, this.width, BANNER_H).build());
+//        }
     }
 
     // ── Render ────────────────────────────────────────────────────────────────
     @Override
-    public void render(DrawContext ctx, int mouseX, int mouseY, float delta) {
+    public void renderContent(DrawContext ctx, int mouseX, int mouseY, float delta, float progress) {
         // Animations-Tick
         animTick += delta * 0.5f;
 
@@ -211,7 +211,7 @@ public class CustomMainMenuScreen extends Screen {
                 this.height - 14, 0xAAAAAA);
 
         // Buttons rendern (über allem)
-        super.render(ctx, mouseX, mouseY, delta);
+        super.renderContent(ctx, mouseX, mouseY, delta, progress);
     }
 
     private void renderLogoGlow(DrawContext ctx, int cx, int topY) {

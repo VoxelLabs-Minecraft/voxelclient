@@ -40,9 +40,15 @@ public class VoxelClientConfig {
     public float   freelookSensitivity = 1.0f;
 
     // ── Cosmetics ────────────────────────────────────────────────────────────
-    public boolean capeEnabled       = false;
-    public String  capeUrl           = "";
-    public boolean elytraEnabled     = false;
+    public boolean cosmeticCapeEnabled  = false;
+    public boolean cosmeticHaloEnabled  = false;
+    public boolean cosmeticWingsEnabled = false;
+    public boolean cosmeticTrailEnabled = false;
+
+    // ── Utility ────────────────────────────────────────────────────────────
+    public boolean deathWaypoint = true;
+    public boolean chatTimestamps = true;
+    public boolean uiAnimations = true;
 
     // ── Internal ─────────────────────────────────────────────────────────────
     private VoxelClientConfig() {}

@@ -1,25 +1,29 @@
 package de.voxellabs.voxelclient.client;
 
 import de.voxellabs.voxelclient.client.badge.BadgeApiClient;
+import de.voxellabs.voxelclient.client.cosmetics.CosmeticsApiClient;
 import de.voxellabs.voxelclient.client.config.VoxelClientConfig;
 import de.voxellabs.voxelclient.client.cosmetics.CosmeticsManager;
+import de.voxellabs.voxelclient.client.cosmetics.renderer.CosmeticsFeatureRenderer;
 import de.voxellabs.voxelclient.client.discord.DiscordRPCManager;
-import de.voxellabs.voxelclient.client.features.FreelookFeature;
-import de.voxellabs.voxelclient.client.features.ZoomFeature;
-import de.voxellabs.voxelclient.client.gui.ClientModScreen;
-import de.voxellabs.voxelclient.client.gui.CustomMainMenuScreen;
-import de.voxellabs.voxelclient.client.gui.CustomServerListScreen;
-import de.voxellabs.voxelclient.client.hud.HudRenderer;
+import de.voxellabs.voxelclient.client.ui.module.gameplay.SnapLookModule;
+import de.voxellabs.voxelclient.client.ui.module.gameplay.ToggleSneakModule;
+import de.voxellabs.voxelclient.client.ui.module.gameplay.ToggleSprintModule;
+import de.voxellabs.voxelclient.client.ui.module.hud.*;
+import de.voxellabs.voxelclient.client.ui.module.utility.FreelookFeature;
+import de.voxellabs.voxelclient.client.ui.module.utility.ZoomFeature;
+import de.voxellabs.voxelclient.client.ui.gui.ClientModScreen;
+import de.voxellabs.voxelclient.client.ui.hud.DraggableHudSystem;
 import de.voxellabs.voxelclient.client.utils.VoxelClientNetwork;
 import de.voxellabs.voxelclient.client.version.VersionChecker;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientEntityEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gui.screen.TitleScreen;
-import net.minecraft.client.gui.screen.multiplayer.MultiplayerScreen;
+import net.minecraft.client.network.AbstractClientPlayerEntity;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import org.lwjgl.glfw.GLFW;
@@ -36,9 +40,6 @@ public class VoxelClientClient implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
         System.out.println("[VoxelClient] ▶ Starting VoxelClient v" + MOD_VERSION + " (Minecraft 1.21.x / Fabric)");
-
-        //0.5 Load Networking methods for handshake
-        VoxelClientNetwork.init();
 
         //1. Load configuration from disk
         VoxelClientConfig.load();
@@ -69,23 +70,43 @@ public class VoxelClientClient implements ClientModInitializer {
                 GLFW.GLFW_KEY_LEFT_ALT,
                 "voxelclient.key.category"
         ));
+        // Hud renderer
+        DraggableHudSystem.register();
 
-        HudRenderer.register();
+        // GamePlay
+        ToggleSprintModule.register();
+        ToggleSneakModule.register();
+        SnapLookModule.register();
 
+        // Utility
         ZoomFeature.init(keyZoom);
         FreelookFeature.init(keyFreeLook);
+        KeystrokesHud.register();
+        CpsCounter.register();
+        ArmorDurabilityHud.register();
+        PingHud.register();
+        FPSHud.register();
+        SpeedHud.register();
+        DirectionHud.register();
 
+        // Cosmetics
+        CosmeticsFeatureRenderer.register();
+
+        // Load Networking methods for handshake
+        VoxelClientNetwork.init();
+
+        // Init listeners
         initLifeCylceListeners();
-
         initClientTickListeners();
-
         initClientConnectionListeners();
 
+        // Logs
         System.out.println("[VoxelClient] ✔ Initialisation complete!");
         System.out.println("[VoxelClient]   Pinned servers: Plantaria.net, ave.rip");
         System.out.println("[VoxelClient]   Update-Check läuft im Hintergrund…");
         System.out.println("[VoxelClient]   Press RIGHT SHIFT in-game to open settings.");
 
+        // Discord-RPC
         showDiscordRichPresence();
     }
 
@@ -96,22 +117,19 @@ public class VoxelClientClient implements ClientModInitializer {
     }
 
     public void initClientTickListeners() {
-        ClientTickEvents.START_CLIENT_TICK.register(client -> {
-            // TitleScreen → CustomMainMenuScreen
-            if (client.currentScreen instanceof TitleScreen && client.world == null) {
-                client.setScreen(new CustomMainMenuScreen());
-                return;
+        ClientEntityEvents.ENTITY_LOAD.register((client, entity) -> {
+            if (client instanceof AbstractClientPlayerEntity player) {
+                CosmeticsApiClient.prefetch(player.getUuid());
             }
+        });
 
-            // MultiplayerScreen → CustomServerListScreen
-            if (client.currentScreen instanceof MultiplayerScreen) {
-                client.setScreen(new CustomServerListScreen(null));
-            }
+        ClientPlayConnectionEvents.DISCONNECT.register((client, disconnect) -> {
+            CosmeticsApiClient.clearCache();
         });
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (keyOpenMenu.wasPressed()) {
-                client.setScreen(new ClientModScreen(client.currentScreen));
+                client.setScreen(new ClientModScreen());
             }
         });
 
@@ -122,7 +140,7 @@ public class VoxelClientClient implements ClientModInitializer {
             @Override
             public void onEndTick(MinecraftClient client) {
                 if (!done && client.player != null && delay-- <= 0) {
-                    CosmeticsManager.reloadCapeFromConfig();
+                    CosmeticsManager.loadCosmetics(client.player.getUuid());
                     done = true;
                 }
             }
@@ -155,6 +173,7 @@ public class VoxelClientClient implements ClientModInitializer {
                     UUID ownUuid = client.player.getUuid();
                     // Einmal aufrufen damit der async Fetch startet
                     BadgeApiClient.getBadge(ownUuid);
+                    CosmeticsApiClient.prefetch(ownUuid);
                 }
             });
         });

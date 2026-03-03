@@ -1,4 +1,4 @@
-package de.voxellabs.voxelclient.client.mixin;
+package de.voxellabs.voxelclient.client.mixin.ui;
 
 import net.minecraft.client.util.Window;
 import org.lwjgl.glfw.GLFW;

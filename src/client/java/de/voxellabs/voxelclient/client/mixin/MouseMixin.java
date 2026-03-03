@@ -1,7 +1,7 @@
 package de.voxellabs.voxelclient.client.mixin;
 
-import de.voxellabs.voxelclient.client.features.FreelookFeature;
-import de.voxellabs.voxelclient.client.features.ZoomFeature;
+import de.voxellabs.voxelclient.client.ui.module.utility.FreelookFeature;
+import de.voxellabs.voxelclient.client.ui.module.utility.ZoomFeature;
 import net.minecraft.client.Mouse;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
