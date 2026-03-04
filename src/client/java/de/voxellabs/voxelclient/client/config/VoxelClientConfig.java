@@ -8,7 +8,7 @@ import java.io.*;
 import java.nio.file.*;
 
 /**
- * Central configuration for MyClient.
+ * Central configuration for VoxelClient.
  * Stored as JSON in the config directory.
  */
 public class VoxelClientConfig {
@@ -25,36 +25,66 @@ public class VoxelClientConfig {
     public boolean hudShowArmor      = true;
     public boolean hudShowDirection  = true;
     public boolean hudShowSpeed      = false;
-    public int     hudColor          = 0xFFFFFF;   // RGB, no alpha
+    public boolean hudShowCps        = true;
+    public boolean hudShowKeystrokes = true;
+    public boolean hudShowPing       = true;
+    public int     hudColor          = 0xFFFFFF;
     public boolean hudShadow         = true;
     public int     hudX              = 2;
     public int     hudY              = 2;
 
     // ── Zoom ─────────────────────────────────────────────────────────────────
-    public boolean zoomSmoothZoom    = true;
-    public double  zoomFov           = 10.0;       // degrees when fully zoomed
-    public double  zoomScrollSensitivity = 1.0;   // scroll wheel adjustment
+    public boolean zoomSmoothZoom         = true;
+    public double  zoomFov                = 10.0;
+    public double  zoomScrollSensitivity  = 1.0;
 
     // ── Freelook ─────────────────────────────────────────────────────────────
-    public boolean freelookEnabled   = true;
-    public float   freelookSensitivity = 1.0f;
+    public boolean freelookEnabled        = true;
+    public float   freelookSensitivity    = 1.0f;
 
     // ── Cosmetics ────────────────────────────────────────────────────────────
-    public boolean cosmeticCapeEnabled  = false;
-    public boolean cosmeticHaloEnabled  = false;
-    public boolean cosmeticWingsEnabled = false;
-    public boolean cosmeticTrailEnabled = false;
+    // Speichert die ID des aktuell aktiven Items pro Typ (0 = keins aktiv).
+    // Wird beim Klick im ClientModScreen gesetzt und direkt gespeichert.
+    public int cosmeticActiveCapeId   = 0;
+    public int cosmeticActiveHaloId   = 0;
+    public int cosmeticActiveWingsId  = 0;
+    public int cosmeticActiveTrailId  = 0;
 
-    // ── Utility ────────────────────────────────────────────────────────────
-    public boolean deathWaypoint = true;
+    // ── Utility ──────────────────────────────────────────────────────────────
+    public boolean deathWaypoint  = true;
     public boolean chatTimestamps = true;
-    public boolean uiAnimations = true;
+    public boolean uiAnimations   = true;
 
     // ── Internal ─────────────────────────────────────────────────────────────
     private VoxelClientConfig() {}
 
-    public static VoxelClientConfig get() {
-        return INSTANCE;
+    public static VoxelClientConfig get() { return INSTANCE; }
+
+    /** Gibt die aktive Item-ID für einen Typ-Namen zurück. */
+    public int getActiveItemId(String typeName) {
+        return switch (typeName) {
+            case "cape"  -> cosmeticActiveCapeId;
+            case "halo"  -> cosmeticActiveHaloId;
+            case "wings" -> cosmeticActiveWingsId;
+            case "trail" -> cosmeticActiveTrailId;
+            default      -> 0;
+        };
+    }
+
+    /** Setzt die aktive Item-ID für einen Typ-Namen. */
+    public void setActiveItemId(String typeName, int itemId) {
+        switch (typeName) {
+            case "cape"  -> cosmeticActiveCapeId   = itemId;
+            case "halo"  -> cosmeticActiveHaloId   = itemId;
+            case "wings" -> cosmeticActiveWingsId  = itemId;
+            case "trail" -> cosmeticActiveTrailId  = itemId;
+        }
+    }
+
+    /** Toggelt ein Item: aktiviert es, oder deaktiviert es wenn es bereits aktiv ist. */
+    public void toggleItem(String typeName, int itemId) {
+        int current = getActiveItemId(typeName);
+        setActiveItemId(typeName, current == itemId ? 0 : itemId);
     }
 
     public static void load() {
@@ -63,10 +93,10 @@ public class VoxelClientConfig {
                 VoxelClientConfig loaded = GSON.fromJson(reader, VoxelClientConfig.class);
                 if (loaded != null) INSTANCE = loaded;
             } catch (IOException e) {
-                System.err.println("[MyClient] Failed to load config: " + e.getMessage());
+                System.err.println("[VoxelClient] Failed to load config: " + e.getMessage());
             }
         } else {
-            save(); // write defaults
+            save();
         }
     }
 
@@ -74,7 +104,7 @@ public class VoxelClientConfig {
         try (Writer writer = Files.newBufferedWriter(CONFIG_PATH)) {
             GSON.toJson(INSTANCE, writer);
         } catch (IOException e) {
-            System.err.println("[MyClient] Failed to save config: " + e.getMessage());
+            System.err.println("[VoxelClient] Failed to save config: " + e.getMessage());
         }
     }
 }
