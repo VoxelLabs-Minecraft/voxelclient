@@ -1,5 +1,6 @@
 package de.voxellabs.voxelclient.client.ui.module.hud;
 
+import de.voxellabs.voxelclient.client.config.VoxelClientConfig;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
@@ -57,7 +58,7 @@ public class CpsCounter {
     }
 
     private static void render(DrawContext context, RenderTickCounter tickCounter) {
-        if (!enabled) return;
+        if (!enabled || !VoxelClientConfig.get().hudShowCps) return;
 
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.player == null) return;

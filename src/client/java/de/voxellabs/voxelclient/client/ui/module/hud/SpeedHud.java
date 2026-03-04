@@ -1,5 +1,6 @@
 package de.voxellabs.voxelclient.client.ui.module.hud;
 
+import de.voxellabs.voxelclient.client.config.VoxelClientConfig;
 import net.fabricmc.fabric.api.client.rendering.v1.HudRenderCallback;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -17,7 +18,7 @@ public class SpeedHud {
     }
 
     private static void render(DrawContext context, RenderTickCounter tickCounter) {
-        if (!enabled) return;
+        if (!enabled || !VoxelClientConfig.get().hudShowSpeed) return;
 
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.player == null) return;
