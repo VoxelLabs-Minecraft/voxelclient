@@ -3,6 +3,8 @@ package de.voxellabs.voxelclient.client.cosmetics.renderer;
 import de.voxellabs.voxelclient.client.config.VoxelClientConfig;
 import de.voxellabs.voxelclient.client.cosmetics.CosmeticsApiClient;
 import de.voxellabs.voxelclient.client.cosmetics.CosmeticsApiResponse;
+import de.voxellabs.voxelclient.client.cosmetics.CosmeticsCatalog;
+import de.voxellabs.voxelclient.client.cosmetics.CosmeticsCatalogClient;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.AbstractClientPlayerEntity;
@@ -16,7 +18,7 @@ import java.util.UUID;
  * Trail Renderer — VoxelClient Cosmetics
  * Spawnt Partikel-Trails hinter Spielern her (Tick-basiert).
  *
- * Trail-IDs:
+ * Trail-IDs (in cosmetic_items.trail_id):
  *   flame   → Flammen
  *   hearts  → Herzen
  *   stars   → End Rod Sterne
@@ -42,15 +44,19 @@ public class TrailRenderer {
     }
 
     private static void spawnTrailForPlayer(MinecraftClient client,
-                                             AbstractClientPlayerEntity player) {
+                                            AbstractClientPlayerEntity player) {
         UUID uuid = player.getUuid();
-        CosmeticsApiResponse cosmetics = CosmeticsApiClient.getCosmetics(uuid);
-        if (cosmetics == null || !cosmetics.hasTrail()) return;
-
         boolean isOwnPlayer = client.player != null && client.player.getUuid().equals(uuid);
-        if (isOwnPlayer && !VoxelClientConfig.get().cosmeticTrailEnabled) return;
 
-        // Nur spawnen wenn der Spieler sich bewegt
+        // Trail-Item-ID ermitteln
+        int trailItemId = resolveActiveTrailItemId(uuid, isOwnPlayer);
+        if (trailItemId == 0) return;
+
+        // Trail-ID (Partikeltyp) aus dem Katalog holen
+        String trailId = resolveTrailId(trailItemId);
+        if (trailId == null || trailId.isBlank()) return;
+
+        // Nur spawnen wenn sich der Spieler bewegt
         Vec3d vel = player.getVelocity();
         boolean moving = vel.horizontalLength() > 0.05 || Math.abs(vel.y) > 0.1;
         if (!moving && player.isOnGround()) return;
@@ -59,14 +65,45 @@ public class TrailRenderer {
         double y = player.getY() + 0.1;
         double z = player.getZ();
 
-        String trailId = cosmetics.cosmetics.trail.id;
-        if (trailId == null) return;
-
         spawnParticles(client, trailId, x, y, z);
     }
 
+    /**
+     * Gibt die aktive Trail-Item-ID zurück.
+     *
+     * Eigener Spieler: lokale Config ist maßgeblich (Spieler hat im Screen
+     *                  ein Item ausgewählt → das wird gerendert).
+     * Andere Spieler:  Server-Antwort (CosmeticsApiResponse.active) ist
+     *                  maßgeblich.
+     *
+     * Gibt 0 zurück wenn kein Trail aktiv ist.
+     */
+    private static int resolveActiveTrailItemId(UUID uuid, boolean isOwnPlayer) {
+        if (isOwnPlayer) {
+            return VoxelClientConfig.get().getActiveItemId("trail");
+        }
+
+        CosmeticsApiResponse data = CosmeticsApiClient.getCosmetics(uuid);
+        if (data == null) return 0;
+        return data.getActiveItemId("trail");
+    }
+
+    /**
+     * Schlägt im Katalog nach welche trail_id ein Item hat.
+     * Gibt null zurück wenn Katalog noch nicht geladen oder Item nicht gefunden.
+     */
+    private static String resolveTrailId(int itemId) {
+        CosmeticsCatalog catalog = CosmeticsCatalogClient.get();
+        if (catalog == null) return null;
+        CosmeticsCatalog.CatalogItem item = catalog.findItem(itemId);
+        if (item == null) return null;
+        return item.trail_id;
+    }
+
+    // ── Partikel-Spawning ─────────────────────────────────────────────────────
+
     private static void spawnParticles(MinecraftClient client, String trailId,
-                                        double x, double y, double z) {
+                                       double x, double y, double z) {
         if (client.world == null) return;
 
         switch (trailId) {
@@ -91,8 +128,7 @@ public class TrailRenderer {
             }
             case "rainbow" -> {
                 float hue = ((float) System.currentTimeMillis() / 200 % 100) / 100.0f;
-                int rgb = java.awt.Color.HSBtoRGB(hue, 1.0f, 1.0f);
-                // rgb ist bereits ein int — direkt übergeben, Alpha auf FF setzen
+                int rgb  = java.awt.Color.HSBtoRGB(hue, 1.0f, 1.0f);
                 int argb = 0xFF000000 | (rgb & 0x00FFFFFF);
                 for (int i = 0; i < 3; i++) {
                     client.world.addParticle(
@@ -107,9 +143,7 @@ public class TrailRenderer {
                             rnd() * 0.1, 0.05, rnd() * 0.1);
                 }
             }
-            default -> {
-                return;
-            }
+            // Unbekannte trail_id → kein Partikel
         }
     }
 
