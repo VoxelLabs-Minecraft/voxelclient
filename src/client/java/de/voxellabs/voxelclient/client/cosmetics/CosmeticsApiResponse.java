@@ -24,8 +24,9 @@ import java.util.Map;
  */
 public class CosmeticsApiResponse {
 
-    public String      uuid;
-    public List<Integer> owned_item_ids;
+    public String        uuid;
+    public List<Integer> owned_item_ids;   // Cosmetic-Items die der Spieler besitzt
+    public List<Integer> owned_badge_ids;  // Badges die der Spieler besitzt
     public Map<String, ActiveState> active;
 
     public static class ActiveState {
@@ -35,9 +36,14 @@ public class CosmeticsApiResponse {
 
     // ── Hilfsmethoden ─────────────────────────────────────────────────────────
 
-    /** Prüft ob der Spieler ein bestimmtes Item besitzt. */
+    /** Prüft ob der Spieler ein bestimmtes Cosmetic-Item besitzt. */
     public boolean ownsItem(int itemId) {
         return owned_item_ids != null && owned_item_ids.contains(itemId);
+    }
+
+    /** Prüft ob der Spieler ein bestimmtes Badge besitzt. */
+    public boolean ownsBadge(int badgeId) {
+        return owned_badge_ids != null && owned_badge_ids.contains(badgeId);
     }
 
     /** Gibt den aktiven Item-State für einen Typ zurück (null wenn nicht vorhanden). */

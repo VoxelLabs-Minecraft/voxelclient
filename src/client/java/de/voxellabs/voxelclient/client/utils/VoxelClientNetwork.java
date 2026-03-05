@@ -1,6 +1,7 @@
 package de.voxellabs.voxelclient.client.utils;
 
 import de.voxellabs.voxelclient.client.badge.BadgeApiClient;
+import de.voxellabs.voxelclient.client.cosmetics.CosmeticsApiClient;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
@@ -50,8 +51,9 @@ public final class VoxelClientNetwork {
                     UUID sender = payload.uuid();
                     VOXEL_USERS.add(sender);
 
-                    // Badge jetzt laden da isVoxelUser() nun true zurückgibt
+                    // Badge + Cosmetics laden sobald VoxelClient-Nutzer bestätigt
                     BadgeApiClient.prefetch(sender);
+                    CosmeticsApiClient.prefetch(sender);
                 }
         );
 

@@ -15,6 +15,15 @@ import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
 import net.minecraft.util.Identifier;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonArray;
+import com.google.gson.JsonObject;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
@@ -55,9 +64,12 @@ public class ClientModScreen extends Screen {
     private static final int CARD_PREVIEW = 64;
     private static final int CARD_GAP     = 8;
 
-    private static final String[] COSMETIC_TABS       = { "Cape", "Halo", "Wings", "Trail" };
-    private static final String[] COSMETIC_TYPE_NAMES = { "cape", "halo", "wings", "trail" };
-    private static final String[] COSMETIC_ICONS      = { "🧣", "✨", "🪽", "✦" };
+    private static final Identifier LOGO_TEXTURE =
+            Identifier.of("voxelclient", "icons/icon.png");
+
+    private static final String[] COSMETIC_TABS       = { "Cape", "Halo", "Wings", "Trail", "Badges" };
+    private static final String[] COSMETIC_TYPE_NAMES = { "cape", "halo", "wings", "trail", "badge" };
+    private static final String[] COSMETIC_ICONS      = { "🧣", "✨", "🪽", "✦", "✦" };
     private int selectedCosmeticTab = 0;
 
     // ── Hauptkategorien ───────────────────────────────────────────────────────
@@ -71,24 +83,133 @@ public class ClientModScreen extends Screen {
     private String  badgeIcon    = null;
     private boolean loadingBadge = true;
 
+    // ── Cosmetics Ladestatus ──────────────────────────────────────────────────
+    // true sobald der async Fetch fertig ist — verhindert "Gesperrt" während des Ladens
+    private volatile boolean playerDataReady = false;
+
+    // ── Alle Badges (public endpoint) ────────────────────────────────────────
+    private static class BadgeInfo {
+        int    id;
+        String name, display, color, icon;
+    }
+    private final List<BadgeInfo> allBadges    = new ArrayList<>();
+    private volatile boolean      badgesLoading = true;
+
+    // Badges die der eigene Spieler besitzt (aus /api/players/:uuid/badges)
+    private final List<Integer>   ownedBadgeIds  = new ArrayList<>();
+    private volatile boolean      ownedBadgesLoading = true;
+
     public ClientModScreen() {
         super(Text.literal("VoxelClient"));
     }
 
     @Override
     protected void init() {
+        // Tab-Index zurücksetzen damit keine ArrayIndexOutOfBoundsException auftreten kann
+        selectedCosmeticTab = 0;
         loadBadge();
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.player != null) {
-            CosmeticsApiClient.prefetch(mc.player.getUuid());
-            CosmeticsCatalogClient.fetch(catalog -> { /* gecacht, UI updated beim nächsten render */ });
+            UUID playerUuid = mc.player.getUuid();
+
+            // Katalog laden (meist bereits gecacht vom Mod-Start)
+            CosmeticsCatalogClient.fetch(catalog -> { /* gecacht */ });
+
+            // Spieler-Daten laden. Callback setzt playerDataReady=true sobald fertig
+            // (auch bei Fehler/null, damit kein ewiger Ladeindikator entsteht).
+            CosmeticsApiClient.fetchWithCallback(playerUuid, data -> {
+                playerDataReady = true;
+            });
+        } else {
+            // Hauptmenü: kein Spieler → sofort fertig, alles als gesperrt anzeigen
+            playerDataReady = true;
+            CosmeticsCatalogClient.fetch(catalog -> { /* gecacht */ });
         }
+        // Alle verfügbaren Badges laden (public)
+        loadAllBadges();
+        // Besessene Badges des eigenen Spielers laden
+        loadOwnedBadges();
+    }
+
+    private void loadOwnedBadges() {
+        ownedBadgesLoading = true;
+        ownedBadgeIds.clear();
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.player == null) { ownedBadgesLoading = false; return; }
+        String uuid = mc.player.getUuid().toString();
+        Thread.ofVirtual().start(() -> {
+            try {
+                java.net.http.HttpClient http = java.net.http.HttpClient.newBuilder()
+                        .connectTimeout(java.time.Duration.ofSeconds(5)).build();
+                java.net.http.HttpRequest req = java.net.http.HttpRequest.newBuilder()
+                        .uri(java.net.URI.create("https://api.voxellabs.de/api/players/" + uuid))
+                        .header("User-Agent", "VoxelClient/1.0")
+                        .GET().build();
+                java.net.http.HttpResponse<String> resp =
+                        http.send(req, java.net.http.HttpResponse.BodyHandlers.ofString());
+                if (resp.statusCode() == 200) {
+                    com.google.gson.JsonObject json =
+                            new Gson().fromJson(resp.body(), com.google.gson.JsonObject.class);
+                    if (json.has("owned_badge_ids")) {
+                        com.google.gson.JsonArray arr = json.getAsJsonArray("owned_badge_ids");
+                        synchronized (ownedBadgeIds) {
+                            ownedBadgeIds.clear();
+                            arr.forEach(el -> ownedBadgeIds.add(el.getAsInt()));
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("[VoxelClient] Owned-Badges Fehler: " + e.getMessage());
+            } finally {
+                ownedBadgesLoading = false;
+            }
+        });
+    }
+
+    private void loadAllBadges() {
+        badgesLoading = true;
+        allBadges.clear();
+        Thread.ofVirtual().start(() -> {
+            try {
+                HttpClient http = HttpClient.newBuilder()
+                        .connectTimeout(Duration.ofSeconds(5)).build();
+                HttpRequest req = HttpRequest.newBuilder()
+                        .uri(URI.create("https://api.voxellabs.de/api/badges/public"))
+                        .header("User-Agent", "VoxelClient/1.0")
+                        .GET().build();
+                HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+                if (resp.statusCode() == 200) {
+                    JsonArray arr = new Gson().fromJson(resp.body(), JsonArray.class);
+                    for (var el : arr) {
+                        JsonObject o = el.getAsJsonObject();
+                        BadgeInfo b  = new BadgeInfo();
+                        b.id      = o.get("id").getAsInt();
+                        b.name    = o.get("name").getAsString();
+                        b.display = o.get("display").getAsString();
+                        b.color   = o.get("color").getAsString();
+                        b.icon    = o.get("icon").getAsString();
+                        allBadges.add(b);
+                        // Katalog befüllen damit Mixins per ID nachschlagen können
+                        BadgeApiClient.putCatalogBadge(b.id, b.name, b.display, b.color, b.icon);
+                    }
+                }
+            } catch (Exception e) {
+                System.err.println("[VoxelClient] Badges laden fehlgeschlagen: " + e.getMessage());
+            } finally {
+                badgesLoading = false;
+            }
+        });
     }
 
     private void loadBadge() {
         loadingBadge = true;
         MinecraftClient mc = MinecraftClient.getInstance();
-        if (mc.player == null) { loadingBadge = false; return; }
+        if (mc.player == null) {
+            // Hauptmenü: kein Spieler, kein Badge
+            loadingBadge = false;
+            badgeDisplay = null;
+            return;
+        }
         UUID uuid = mc.player.getUuid();
         BadgeApiClient.fetchWithCallback(uuid, badge -> {
             loadingBadge = false;
@@ -118,22 +239,40 @@ public class ClientModScreen extends Screen {
         ctx.fill(0, 0, SIDEBAR_W, height, COL_SIDEBAR);
         ctx.fill(SIDEBAR_W - 1, 0, SIDEBAR_W, height, COL_BORDER);
 
-        int logoY = 18;
-        ctx.fill(PADDING, logoY, PADDING + 26, logoY + 26, COL_ACCENT);
-        ctx.drawCenteredTextWithShadow(textRenderer, "V", PADDING + 13, logoY + 9, 0xFFFFFF);
-        ctx.drawTextWithShadow(textRenderer, "§bVoxel§5Client", PADDING + 32, logoY + 9, COL_TEXT);
-        ctx.drawTextWithShadow(textRenderer, "§7v" + VersionChecker.CURRENT_VERSION, PADDING + 32, logoY + 20, COL_TEXT);
-        ctx.fill(PADDING, logoY + 34, SIDEBAR_W - PADDING, logoY + 35, COL_BORDER);
+        int logoY = 14;
+        // Logo-Textur (assets/voxelclient/icons/icon.png)
+        ctx.drawTexture(net.minecraft.client.render.RenderLayer::getGuiTextured,
+                LOGO_TEXTURE, PADDING, logoY, 0, 0, 32, 32, 32, 32);
+        ctx.drawTextWithShadow(textRenderer, "§bVoxel§5Client", PADDING + 36, logoY + 6, COL_TEXT);
+        ctx.drawTextWithShadow(textRenderer, "§7v" + VersionChecker.CURRENT_VERSION,
+                PADDING + 36, logoY + 17, COL_TEXT_DIM);
+        ctx.fill(PADDING, logoY + 40, SIDEBAR_W - PADDING, logoY + 41, COL_BORDER);
 
-        int playerY = logoY + 42;
+        int playerY = logoY + 48;
         MinecraftClient mc = MinecraftClient.getInstance();
-        String name = mc.player != null ? mc.player.getName().getString() : "?";
+        String name = mc.player != null ? mc.player.getName().getString() : "Nicht eingeloggt";
         ctx.drawTextWithShadow(textRenderer, "§f" + name, PADDING, playerY, COL_TEXT);
 
-        String badgeStr = loadingBadge ? "§7Lädt..."
-                : badgeDisplay != null
-                ? hexToMc(badgeColor) + (badgeIcon != null ? badgeIcon : "✦") + " " + badgeDisplay
-                : "§7Kein Badge";
+        // Eigenes Badge: activeBadgeId aus Config → Katalog-Lookup
+        String badgeStr;
+        int activeId = VoxelClientConfig.get().activeBadgeId;
+        if (loadingBadge) {
+            badgeStr = "§7Lädt...";
+        } else if (activeId != 0) {
+            BadgeApiClient.CachedBadge activeBadge = BadgeApiClient.getBadgeById(activeId);
+            if (activeBadge != null) {
+                badgeStr = BadgeApiClient.formatColor(activeBadge.color)
+                        + (activeBadge.icon != null ? activeBadge.icon : "✦")
+                        + " " + activeBadge.display;
+            } else {
+                // Katalog noch nicht geladen — Fallback auf Server-Badge
+                badgeStr = badgeDisplay != null
+                        ? hexToMc(badgeColor) + (badgeIcon != null ? badgeIcon : "✦") + " " + badgeDisplay
+                        : "§7Kein Badge";
+            }
+        } else {
+            badgeStr = "§7Kein Badge";
+        }
         ctx.drawTextWithShadow(textRenderer, badgeStr, PADDING, playerY + 12, COL_TEXT_DIM);
         ctx.fill(PADDING, playerY + 26, SIDEBAR_W - PADDING, playerY + 27, COL_BORDER);
 
@@ -155,8 +294,7 @@ public class ClientModScreen extends Screen {
                     CAT_ICONS[i] + "  " + CATEGORIES[i], PADDING + 6, cy + 14, tc);
         }
 
-//        ctx.drawTextWithShadow(textRenderer, "§7v" + VersionChecker.CURRENT_VERSION,
-//                PADDING, height - 12, COL_TEXT_DIM);
+        // Version wird jetzt neben dem Logo angezeigt
     }
 
     // ── Content Panel ─────────────────────────────────────────────────────────
@@ -189,6 +327,10 @@ public class ClientModScreen extends Screen {
     // ── Cosmetics ─────────────────────────────────────────────────────────────
 
     private void drawCosmetics(DrawContext ctx, int mx, int my, int x, int y, int w) {
+        // Sicherstellen dass der Tab-Index immer im gültigen Bereich liegt
+        if (selectedCosmeticTab < 0 || selectedCosmeticTab >= COSMETIC_TABS.length) {
+            selectedCosmeticTab = 0;
+        }
         // Sub-Tab-Leiste
         int tabW = (w - (COSMETIC_TABS.length - 1) * SUBTAB_GAP) / COSMETIC_TABS.length;
         for (int i = 0; i < COSMETIC_TABS.length; i++) {
@@ -218,9 +360,28 @@ public class ClientModScreen extends Screen {
             return;
         }
 
+        // Sicherheits-Fallback: mc.player null (Hauptmenü) → sofort ready
+        if (!playerDataReady) {
+            MinecraftClient mcFb = MinecraftClient.getInstance();
+            if (mcFb.player == null || CosmeticsApiClient.isCached(mcFb.player.getUuid())) {
+                playerDataReady = true;
+            } else {
+                drawInfoBox(ctx, "§7Spieler-Daten werden geladen...", x, y, w);
+                return;
+            }
+        }
+
         MinecraftClient mc = MinecraftClient.getInstance();
+        // playerData kann null sein wenn der Spieler nicht auf dem Server registriert ist
+        // → alle Items werden als gesperrt angezeigt (owned_item_ids leer)
         CosmeticsApiResponse playerData = mc.player != null
                 ? CosmeticsApiClient.getCosmetics(mc.player.getUuid()) : null;
+
+        // Badges-Tab separat behandeln
+        if (selectedCosmeticTab == 4) {
+            drawBadgesInCosmetics(ctx, mx, my, x, y, w);
+            return;
+        }
 
         String typeName = COSMETIC_TYPE_NAMES[selectedCosmeticTab];
         List<CosmeticsCatalog.CatalogItem> items = catalog.getItemsForType(typeName);
@@ -355,6 +516,132 @@ public class ClientModScreen extends Screen {
         drawToggleRow(ctx, mx, my, x, y, w, 2, "UI-Animationen", "Animationen im Menü",       cfg.uiAnimations,   true);
     }
 
+    // ── Badges Sub-Tab ────────────────────────────────────────────────────────
+
+    private static final int BADGE_CARD_W   = 180;
+    private static final int BADGE_CARD_H   = 64;
+    private static final int BADGE_CARD_GAP = 8;
+
+    /**
+     * Zeichnet den Badges-Tab im Cosmetics-Panel.
+     * Zeigt alle verfügbaren Badges; eigene werden hervorgehoben.
+     * Das aktive Badge (wird angezeigt) ist togglebar.
+     */
+    private void drawBadgesInCosmetics(DrawContext ctx, int mx, int my, int x, int y, int w) {
+        if (badgesLoading || ownedBadgesLoading) {
+            drawInfoBox(ctx, "§7Badges werden geladen...", x, y, w);
+            return;
+        }
+        if (allBadges.isEmpty()) {
+            drawInfoBox(ctx, "§7Keine Badges verfügbar.", x, y, w);
+            return;
+        }
+
+        MinecraftClient mc = MinecraftClient.getInstance();
+
+        // Aktives Badge aus Config
+        int activeBadgeId = VoxelClientConfig.get().activeBadgeId;
+
+        int cols = Math.max(1, (w + BADGE_CARD_GAP) / (BADGE_CARD_W + BADGE_CARD_GAP));
+        for (int i = 0; i < allBadges.size(); i++) {
+            BadgeInfo badge = allBadges.get(i);
+            int col = i % cols;
+            int row = i / cols;
+            int cx  = x + col * (BADGE_CARD_W + BADGE_CARD_GAP);
+            int cy  = y + row * (BADGE_CARD_H + BADGE_CARD_GAP);
+
+            boolean owned  = ownedBadgeIds.contains(badge.id);
+            boolean active = owned && activeBadgeId == badge.id;
+            drawBadgeCard(ctx, mx, my, cx, cy, badge, owned, active);
+        }
+    }
+
+    private void handleBadgeTabClick(int mx, int my, int x, int y, int w) {
+        if (allBadges.isEmpty()) return;
+        MinecraftClient mc = MinecraftClient.getInstance();
+        CosmeticsApiResponse playerData = mc.player != null
+                ? CosmeticsApiClient.getCosmetics(mc.player.getUuid()) : null;
+        if (playerData == null) return;
+
+        int cols = Math.max(1, (w + BADGE_CARD_GAP) / (BADGE_CARD_W + BADGE_CARD_GAP));
+        for (int i = 0; i < allBadges.size(); i++) {
+            BadgeInfo badge = allBadges.get(i);
+            int col = i % cols;
+            int row = i / cols;
+            int cx  = x + col * (BADGE_CARD_W + BADGE_CARD_GAP);
+            int cy  = y + row * (BADGE_CARD_H + BADGE_CARD_GAP);
+
+            if (mx >= cx && mx < cx + BADGE_CARD_W && my >= cy && my < cy + BADGE_CARD_H) {
+                if (!ownedBadgeIds.contains(badge.id)) return; // gesperrt
+
+                VoxelClientConfig cfg = VoxelClientConfig.get();
+                // Toggle: aktiv → deaktivieren; inaktiv → aktivieren
+                if (cfg.activeBadgeId == badge.id) {
+                    cfg.activeBadgeId = 0;
+                } else {
+                    cfg.activeBadgeId = badge.id;
+                }
+                VoxelClientConfig.save();
+                return;
+            }
+        }
+    }
+
+    private void drawBadgeCard(DrawContext ctx, int mx, int my,
+                               int x, int y, BadgeInfo badge,
+                               boolean owned, boolean active) {
+        boolean hov = owned && mx >= x && mx < x + BADGE_CARD_W && my >= y && my < y + BADGE_CARD_H;
+
+        int bg = !owned ? COL_LOCKED_BG
+                : active ? COL_ACTIVE_GLOW
+                : hov    ? COL_HOVER_BG
+                :          COL_PANEL;
+        ctx.fill(x, y, x + BADGE_CARD_W, y + BADGE_CARD_H, bg);
+
+        // Farbiger linker Streifen in Badge-Farbe
+        int badgeArgb = parseBadgeColor(badge.color);
+        ctx.fill(x, y, x + 3, y + BADGE_CARD_H, badgeArgb);
+
+        // Rahmen
+        int border = active ? badgeArgb : (owned ? COL_BORDER : 0xFF0A0A16);
+        ctx.fill(x,                    y,                    x + BADGE_CARD_W, y + 1,              border);
+        ctx.fill(x,                    y + BADGE_CARD_H - 1, x + BADGE_CARD_W, y + BADGE_CARD_H,   border);
+        ctx.fill(x + BADGE_CARD_W - 1, y,                    x + BADGE_CARD_W, y + BADGE_CARD_H,   border);
+
+        if (!owned) {
+            // Gesperrt
+            ctx.drawCenteredTextWithShadow(textRenderer, "§8🔒  " + badge.display,
+                    x + BADGE_CARD_W / 2, y + BADGE_CARD_H / 2 - 4, COL_LOCKED_TEXT);
+        } else {
+            // Icon-Box
+            ctx.fill(x + 8, y + 14, x + 36, y + 40, (badgeArgb & 0x00FFFFFF) | 0x33000000);
+            ctx.drawCenteredTextWithShadow(textRenderer, badge.icon, x + 22, y + 21, badgeArgb);
+
+            // Name
+            String nameStr = active ? "§f§l" + badge.display : "§f" + badge.display;
+            ctx.drawTextWithShadow(textRenderer, nameStr, x + 44, y + 14, COL_TEXT);
+
+            // Status
+            if (active) {
+                ctx.drawTextWithShadow(textRenderer, "§b● Wird angezeigt", x + 44, y + 26, 0xFF4A6CF7);
+            } else {
+                ctx.drawTextWithShadow(textRenderer, "§7○ Klicken zum Aktivieren", x + 44, y + 26, COL_TEXT_DIM);
+            }
+
+            // Hinweis: nur eines aktiv
+            if (active) {
+                ctx.drawTextWithShadow(textRenderer, "§7(Nochmal klicken → ausblenden)",
+                        x + 44, y + 38, COL_TEXT_DIM);
+            }
+        }
+    }
+
+    private static int parseBadgeColor(String hex) {
+        if (hex == null) return 0xFF888888;
+        try { return 0xFF000000 | Integer.parseInt(hex.replace("#", ""), 16); }
+        catch (Exception e) { return 0xFF888888; }
+    }
+
     // ── UI-Komponenten ────────────────────────────────────────────────────────
 
     private void drawSectionHeader(DrawContext ctx, String title, int x, int y) {
@@ -416,6 +703,8 @@ public class ClientModScreen extends Screen {
             switch (selectedCategory) {
 
                 case 0 -> { // Cosmetics
+                    // Sicherstellen dass Tab-Index gültig ist
+                    if (selectedCosmeticTab < 0 || selectedCosmeticTab >= COSMETIC_TABS.length) selectedCosmeticTab = 0;
                     int baseY = HEADER_H + PADDING;
 
                     // Sub-Tab-Klick
@@ -430,6 +719,10 @@ public class ClientModScreen extends Screen {
                     }
 
                     // Karten-Klick
+                    if (selectedCosmeticTab == 4) {
+                        handleBadgeTabClick(mx, my, x, baseY + SUBTAB_H + 12, w);
+                        break;
+                    }
                     CosmeticsCatalog catalog = CosmeticsCatalogClient.get();
                     if (catalog == null) break;
                     CosmeticsApiResponse playerData = mc.player != null

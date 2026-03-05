@@ -1,151 +1,248 @@
 package de.voxellabs.voxelclient.client.badge;
 
+import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import de.voxellabs.voxelclient.client.utils.VoxelClientNetwork;
 
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
 import java.net.URI;
-import java.nio.charset.StandardCharsets;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.time.Duration;
+import java.util.*;
+import java.util.concurrent.*;
 import java.util.function.Consumer;
 
+/**
+ * Lädt Badge-Daten via Batch-Endpoint.
+ *
+ * Strategie:
+ *  - UUIDs werden 1,5s gesammelt, dann ein POST /api/badges/batch
+ *  - Eigener Spieler (fetchWithCallback): sofortiger Einzelrequest
+ *  - Cache-TTL: 10 Minuten
+ */
 public final class BadgeApiClient {
 
     public static final String API_BASE_URL = "https://api.voxellabs.de";
-    private static final long CACHE_TTL_MS = 5 * 60 * 1000L;
-    private static final Set<UUID> LOADING = ConcurrentHashMap.newKeySet();
+    private static final String BATCH_URL   = API_BASE_URL + "/api/badges/batch";
+    private static final String SINGLE_URL  = API_BASE_URL + "/api/players/";
 
-    // ── CachedBadge als normale Klasse statt Record ───────────────────────────
+    private static final long     CACHE_TTL_MS  = 10 * 60 * 1000L;
+    private static final Duration TIMEOUT       = Duration.ofSeconds(6);
+    private static final long     BATCH_WINDOW  = 1500L;
+    private static final int      BATCH_MAX     = 100;
+
+    private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(TIMEOUT).build();
+    private static final Gson GSON = new Gson();
+
+    // ── Cache ─────────────────────────────────────────────────────────────────
     public static class CachedBadge {
-        public final String name;
-        public final String display;
-        public final String color;
-        public final String icon;
+        public final String name, display, color, icon;
         final long fetchedAt;
-
         CachedBadge(String name, String display, String color, String icon, long fetchedAt) {
-            this.name      = name;
-            this.display   = display;
-            this.color     = color;
-            this.icon      = icon;
-            this.fetchedAt = fetchedAt;
+            this.name = name; this.display = display;
+            this.color = color; this.icon = icon; this.fetchedAt = fetchedAt;
         }
-
         public boolean isExpired() {
             return System.currentTimeMillis() - fetchedAt > CACHE_TTL_MS;
         }
     }
 
-    // Sentinel: "bekannt aber kein Badge" — kein Record mehr nötig
     private static final CachedBadge NO_BADGE =
-            new CachedBadge(null, null, null, null, 0L);
+            new CachedBadge(null, null, null, null, Long.MAX_VALUE / 2);
 
-    private static final Map<UUID, CachedBadge> CACHE = new ConcurrentHashMap<>();
+    private static final Map<UUID, CachedBadge>            CACHE     = new ConcurrentHashMap<>();
+    private static final Set<UUID>                         LOADING   = ConcurrentHashMap.newKeySet();
+    private static final Map<UUID, List<Consumer<CachedBadge>>> CALLBACKS = new ConcurrentHashMap<>();
+
+    // ── Batch-Sammler ─────────────────────────────────────────────────────────
+    private static final Set<UUID>            BATCH_PENDING = ConcurrentHashMap.newKeySet();
+    private static volatile ScheduledFuture<?> batchTimer   = null;
+    private static final ScheduledExecutorService SCHEDULER =
+            Executors.newSingleThreadScheduledExecutor(r -> {
+                Thread t = new Thread(r, "VoxelClient-BadgeBatch");
+                t.setDaemon(true);
+                return t;
+            });
+
+    // ── Globaler Badge-Katalog (id → Badge) ──────────────────────────────────
+    // Wird von CosmeticsCatalogClient/ClientModScreen via loadAllBadges() befüllt.
+    private static final java.util.concurrent.ConcurrentHashMap<Integer, CachedBadge>
+            CATALOG = new java.util.concurrent.ConcurrentHashMap<>();
+
+    /** Speichert alle bekannten Badges aus dem öffentlichen Katalog. */
+    public static void putCatalogBadge(int id, String name, String display, String color, String icon) {
+        CATALOG.put(id, new CachedBadge(name, display, color, icon, Long.MAX_VALUE / 2));
+    }
+
+    /** Gibt ein Badge anhand seiner ID zurück (aus dem Katalog, unabhängig vom Spieler). */
+    public static CachedBadge getBadgeById(int id) {
+        return CATALOG.get(id);
+    }
 
     private BadgeApiClient() {}
 
+    // ── Public API ────────────────────────────────────────────────────────────
+
     public static CachedBadge getBadge(UUID uuid) {
-        CachedBadge cachedBadge = CACHE.get(uuid);
-        if (cachedBadge == null || cachedBadge.isExpired()) {
-            Thread.ofVirtual().start(() -> fetchAndCache(uuid));
-            return (cachedBadge == null || cachedBadge == NO_BADGE) ? null : cachedBadge;
-        }
-        return cachedBadge == NO_BADGE ? null : cachedBadge;
+        CachedBadge c = CACHE.get(uuid);
+        if (c != null && !c.isExpired()) return c == NO_BADGE ? null : c;
+        prefetch(uuid);
+        return (c == null || c == NO_BADGE) ? null : c;
     }
 
     public static String getBadgeString(UUID uuid) {
         CachedBadge badge = getBadge(uuid);
         if (badge == null) return "§7✦ §r";
-        return formatColorCode(badge.color) + (badge.icon != null ? badge.icon : "✦") + " §r";
+        return formatColor(badge.color) + (badge.icon != null ? badge.icon : "✦") + " §r";
     }
 
+    /** Fügt UUID in Batch-Queue ein. Nur für bestätigte VoxelClient-Nutzer aufrufen. */
     public static void prefetch(UUID uuid) {
-        CachedBadge cachedBadge = CACHE.get(uuid);
-        if (cachedBadge != null && !cachedBadge.isExpired()) return;
+        CachedBadge c = CACHE.get(uuid);
+        if (c != null && !c.isExpired()) return;
         if (!LOADING.add(uuid)) return;
-        // Direkt laden ohne isVoxelUser-Check
-        Thread.ofVirtual().start(() -> {
-            fetchAndCache(uuid);
-            LOADING.remove(uuid);
-        });
-    }
 
-    private static void fetchAndCache(UUID uuid) {
-        try {
-            String uuidStr = uuid.toString().toLowerCase();
+        BATCH_PENDING.add(uuid);
 
-            HttpURLConnection conn = (HttpURLConnection)
-                    URI.create(API_BASE_URL + "/api/players/" + uuidStr).toURL().openConnection();
-            conn.setRequestMethod("GET");
-            conn.setConnectTimeout(4_000);
-            conn.setReadTimeout(4_000);
-            conn.setRequestProperty("User-Agent", "VoxelClient-Mod/1.0");
-
-            int status = conn.getResponseCode();
-
-            if (status != 200) {
-                CACHE.put(uuid, NO_BADGE);
-                return;
-            }
-
-            JsonObject json;
-            try (InputStreamReader reader = new InputStreamReader(
-                    conn.getInputStream(), StandardCharsets.UTF_8)) {
-                json = JsonParser.parseReader(reader).getAsJsonObject();
-            }
-
-            if (!json.has("badge_name") || json.get("badge_name").isJsonNull()) {
-                CACHE.put(uuid, NO_BADGE);
-                return;
-            }
-
-            String badgeName = getStr(json, "badge_name");
-            String color     = getStr(json, "color");
-
-            CACHE.put(uuid, new CachedBadge(
-                    badgeName,
-                    getStr(json, "display"),
-                    color,
-                    getStr(json, "icon"),
-                    System.currentTimeMillis()
-            ));
-            VoxelClientNetwork.addVoxelUser(uuid);
-        } catch (Exception e) {
-            if (CreatorList.isCreator(uuid)) {
-                CACHE.put(uuid, new CachedBadge(
-                        "creator", "Creator", "#CC2200", "✦",
-                        System.currentTimeMillis()));
-            } else {
-                CACHE.put(uuid, NO_BADGE);
-            }
+        if (batchTimer == null || batchTimer.isDone()) {
+            batchTimer = SCHEDULER.schedule(
+                    BadgeApiClient::flushBatch, BATCH_WINDOW, TimeUnit.MILLISECONDS);
+        }
+        if (BATCH_PENDING.size() >= BATCH_MAX) {
+            if (batchTimer != null) batchTimer.cancel(false);
+            SCHEDULER.execute(BadgeApiClient::flushBatch);
         }
     }
 
+    /** Sofortiger Einzelrequest für den eigenen Spieler. */
     public static void fetchWithCallback(UUID uuid, Consumer<CachedBadge> callback) {
-        CachedBadge cached = CACHE.get(uuid);
-        if (cached != null && !cached.isExpired()) {
-            callback.accept(cached == NO_BADGE ? null : cached);
+        CachedBadge c = CACHE.get(uuid);
+        if (c != null && !c.isExpired()) {
+            callback.accept(c == NO_BADGE ? null : c);
             return;
         }
-        Thread.ofVirtual().start(() -> {
-            fetchAndCache(uuid);
-            CachedBadge result = CACHE.get(uuid);
-            callback.accept(result == null || result == NO_BADGE ? null : result);
+        CALLBACKS.computeIfAbsent(uuid, k -> new ArrayList<>()).add(callback);
+        if (LOADING.add(uuid)) {
+            Thread.ofVirtual().start(() -> fetchSingle(uuid));
+        }
+    }
+
+    public static void clearCache() {
+        CACHE.clear();
+        LOADING.clear();
+        BATCH_PENDING.clear();
+        CALLBACKS.clear();
+    }
+
+    // ── Batch ─────────────────────────────────────────────────────────────────
+
+    private static synchronized void flushBatch() {
+        if (BATCH_PENDING.isEmpty()) return;
+        List<UUID> batch = new ArrayList<>(BATCH_PENDING);
+        BATCH_PENDING.clear();
+
+        System.out.println("[VoxelClient] Badge Batch-Request: " + batch.size() + " UUIDs");
+
+        com.google.gson.JsonArray arr = new com.google.gson.JsonArray();
+        batch.forEach(u -> arr.add(u.toString()));
+        com.google.gson.JsonObject body = new com.google.gson.JsonObject();
+        body.add("uuids", arr);
+
+        HttpRequest req = HttpRequest.newBuilder()
+                .uri(URI.create(BATCH_URL))
+                .timeout(TIMEOUT)
+                .header("Content-Type", "application/json")
+                .header("User-Agent", "VoxelClient/1.0")
+                .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
+                .build();
+
+        CompletableFuture.supplyAsync(() -> {
+            try {
+                HttpResponse<String> resp = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
+                if (resp.statusCode() == 200) return resp.body();
+                System.err.println("[VoxelClient] Badge-Batch HTTP " + resp.statusCode());
+                return null;
+            } catch (Exception e) {
+                System.err.println("[VoxelClient] Badge-Batch Fehler: " + e.getMessage());
+                return null;
+            }
+        }).handle((responseBody, ex) -> {
+            batch.forEach(LOADING::remove);
+            if (responseBody == null) {
+                batch.forEach(uuid -> storeAndFire(uuid, null));
+                return null;
+            }
+            try {
+                JsonObject map = GSON.fromJson(responseBody, JsonObject.class);
+                for (UUID uuid : batch) {
+                    CachedBadge badge = null;
+                    if (map.has(uuid.toString()) && !map.get(uuid.toString()).isJsonNull()) {
+                        badge = parseBadge(map.getAsJsonObject(uuid.toString()));
+                    }
+                    storeAndFire(uuid, badge);
+                }
+            } catch (Exception e) {
+                System.err.println("[VoxelClient] Badge-Batch Parse-Fehler: " + e.getMessage());
+                batch.forEach(uuid -> storeAndFire(uuid, null));
+            }
+            return null;
         });
     }
 
-    private static String formatColorCode(String hex) {
+    // ── Einzelrequest ─────────────────────────────────────────────────────────
+
+    private static void fetchSingle(UUID uuid) {
+        try {
+            HttpRequest req = HttpRequest.newBuilder()
+                    .uri(URI.create(SINGLE_URL + uuid))
+                    .timeout(TIMEOUT)
+                    .header("User-Agent", "VoxelClient/1.0")
+                    .GET().build();
+            HttpResponse<String> resp = HTTP.send(req, HttpResponse.BodyHandlers.ofString());
+            CachedBadge badge = null;
+            if (resp.statusCode() == 200) {
+                JsonObject json = GSON.fromJson(resp.body(), JsonObject.class);
+                badge = parseBadge(json);
+            }
+            LOADING.remove(uuid);
+            storeAndFire(uuid, badge);
+        } catch (Exception e) {
+            System.err.println("[VoxelClient] Badge-Single Fehler: " + e.getMessage());
+            LOADING.remove(uuid);
+            storeAndFire(uuid, null);
+        }
+    }
+
+    // ── Hilfsmethoden ─────────────────────────────────────────────────────────
+
+    private static CachedBadge parseBadge(JsonObject json) {
+        if (json == null) return null;
+        String name = str(json, "badge_name");
+        if (name == null) return null; // kein Badge vergeben
+        return new CachedBadge(
+                name, str(json, "display"), str(json, "color"),
+                str(json, "icon"), System.currentTimeMillis());
+    }
+
+    private static void storeAndFire(UUID uuid, CachedBadge badge) {
+        CACHE.put(uuid, badge != null ? badge : NO_BADGE);
+        if (badge != null) VoxelClientNetwork.addVoxelUser(uuid);
+        List<Consumer<CachedBadge>> cbs = CALLBACKS.remove(uuid);
+        if (cbs != null) cbs.forEach(cb -> cb.accept(badge));
+    }
+
+    private static String str(JsonObject json, String key) {
+        return (json.has(key) && !json.get(key).isJsonNull())
+                ? json.get(key).getAsString() : null;
+    }
+
+    public static String formatColor(String hex) {
         if (hex == null) return "§7";
         try {
             int r = Integer.parseInt(hex.substring(1, 3), 16);
             int g = Integer.parseInt(hex.substring(3, 5), 16);
             int b = Integer.parseInt(hex.substring(5, 7), 16);
-
             if (r > 180 && g < 80  && b < 80)  return "§4";
             if (r > 220 && g < 120 && b < 80)  return "§c";
             if (r > 200 && g > 120 && b < 60)  return "§6";
@@ -160,10 +257,5 @@ public final class BadgeApiClient {
             if (r > 160 && g > 200 && b > 200) return "§b";
         } catch (Exception ignored) {}
         return "§7";
-    }
-
-    private static String getStr(JsonObject json, String key) {
-        return json.has(key) && !json.get(key).isJsonNull()
-                ? json.get(key).getAsString() : null;
     }
 }

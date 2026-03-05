@@ -50,6 +50,9 @@ public class VoxelClientConfig {
     public int cosmeticActiveWingsId  = 0;
     public int cosmeticActiveTrailId  = 0;
 
+    /** Aktives (angezeigtes) Badge-ID. 0 = keins. Nur eines gleichzeitig. */
+    public int activeBadgeId = 0;
+
     // ── Utility ──────────────────────────────────────────────────────────────
     public boolean deathWaypoint  = true;
     public boolean chatTimestamps = true;

@@ -2,8 +2,8 @@ package de.voxellabs.voxelclient.client;
 
 import de.voxellabs.voxelclient.client.badge.BadgeApiClient;
 import de.voxellabs.voxelclient.client.cosmetics.CosmeticsApiClient;
+import de.voxellabs.voxelclient.client.cosmetics.CosmeticsCatalogClient;
 import de.voxellabs.voxelclient.client.config.VoxelClientConfig;
-import de.voxellabs.voxelclient.client.cosmetics.CosmeticsManager;
 import de.voxellabs.voxelclient.client.cosmetics.renderer.CosmeticsFeatureRenderer;
 import de.voxellabs.voxelclient.client.discord.DiscordRPCManager;
 import de.voxellabs.voxelclient.client.ui.module.gameplay.SnapLookModule;
@@ -43,15 +43,28 @@ public class VoxelClientClient implements ClientModInitializer {
     public void onInitializeClient() {
         System.out.println("[VoxelClient] ▶ Starting VoxelClient v" + MOD_VERSION + " (Minecraft 1.21.x / Fabric)");
 
-        //1. Load configuration from disk
+        // 1. Konfiguration laden
         VoxelClientConfig.load();
 
-        //2. Update-Check asynchron
+        // 2. Update-Check asynchron
         VersionChecker.checkForUpdate();
 
-        //2.5 Init discordrpc
+        // 3. Discord RPC
         DiscordRPCManager.init();
 
+        // 4. Cosmetics-Katalog vorladen (global, einmalig, kein Login nötig)
+        //    Wird von TrailRenderer + CosmeticsFeatureRenderer benötigt um
+        //    Item-IDs in URLs/trail_ids aufzulösen.
+        CosmeticsCatalogClient.fetch(catalog -> {
+            if (catalog != null && !catalog.isEmpty()) {
+                System.out.println("[VoxelClient] ✔ Cosmetics-Katalog geladen ("
+                        + catalog.types.size() + " Typen)");
+            } else {
+                System.err.println("[VoxelClient] ⚠ Cosmetics-Katalog ist leer oder konnte nicht geladen werden");
+            }
+        });
+
+        // Key Bindings
         keyOpenMenu = KeyBindingHelper.registerKeyBinding(new KeyBinding(
                 "voxelclient.key.openMenu",
                 InputUtil.Type.KEYSYM,
@@ -72,10 +85,18 @@ public class VoxelClientClient implements ClientModInitializer {
                 GLFW.GLFW_KEY_LEFT_ALT,
                 "voxelclient.key.category"
         ));
-        // Hud renderer
-        DraggableHudSystem.register();
 
-        // GamePlay
+        // HUD
+        DraggableHudSystem.register();
+        FPSHud.register();
+        DirectionHud.register();
+        SpeedHud.register();
+        ArmorDurabilityHud.register();
+        KeystrokesHud.register();
+        CpsCounter.register();
+        PingHud.register();
+
+        // Gameplay
         ToggleSprintModule.register();
         ToggleSneakModule.register();
         SnapLookModule.register();
@@ -83,70 +104,77 @@ public class VoxelClientClient implements ClientModInitializer {
         // Utility
         ZoomFeature.init(keyZoom);
         FreelookFeature.init(keyFreeLook);
-        KeystrokesHud.register();
-        CpsCounter.register();
-        ArmorDurabilityHud.register();
-        PingHud.register();
-        FPSHud.register();
-        SpeedHud.register();
-        DirectionHud.register();
 
-        // Cosmetics
+        // Cosmetics (registriert auch TrailRenderer via CosmeticsFeatureRenderer.register())
         CosmeticsFeatureRenderer.register();
 
-        // Load Networking methods for handshake
+        // Networking
         VoxelClientNetwork.init();
 
-        // Init listeners
-        initLifeCylceListeners();
+        // Listeners
+        initLifeCycleListeners();
         initClientTickListeners();
         initClientConnectionListeners();
 
-        // Logs
         System.out.println("[VoxelClient] ✔ Initialisation complete!");
         System.out.println("[VoxelClient]   Pinned servers: Plantaria.net, ave.rip");
         System.out.println("[VoxelClient]   Update-Check läuft im Hintergrund…");
         System.out.println("[VoxelClient]   Press RIGHT SHIFT in-game to open settings.");
 
-        // Discord-RPC
         showDiscordRichPresence();
     }
 
-    public void initLifeCylceListeners() {
+    public void initLifeCycleListeners() {
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
             DiscordRPCManager.showMainMenu();
         });
     }
 
     public void initClientTickListeners() {
-        ClientEntityEvents.ENTITY_LOAD.register((client, entity) -> {
-            if (client instanceof AbstractClientPlayerEntity player) {
-                CosmeticsApiClient.prefetch(player.getUuid());
-                BadgeApiClient.prefetch(player.getUuid());
+        // Cosmetics + Badge vorladen — nur für den eigenen Spieler beim ENTITY_LOAD.
+        // Andere Spieler werden lazy geladen wenn sie tatsächlich gerendert werden
+        // (getCosmetics() ruft prefetch() intern auf). Das verhindert Massen-Requests
+        // auf großen Servern.
+        // ENTITY_LOAD: nur eigenen Spieler laden.
+        // Andere Spieler werden via VoxelClient-Handshake (VoxelClientNetwork) erkannt
+        // und dann gebatcht geladen — kein Einzel-Request pro sichtbarem Spieler mehr.
+        ClientEntityEvents.ENTITY_LOAD.register((entity, world) -> {
+            if (entity instanceof AbstractClientPlayerEntity player) {
+                MinecraftClient mc = MinecraftClient.getInstance();
+                if (mc.player != null && mc.player.getUuid().equals(player.getUuid())) {
+                    CosmeticsApiClient.prefetch(player.getUuid());
+                    BadgeApiClient.prefetch(player.getUuid());
+                }
             }
         });
 
-        ClientPlayConnectionEvents.DISCONNECT.register((client, disconnect) -> {
+        // Beim Disconnect: Spieler-spezifische Caches leeren.
+        // CosmeticsCatalogClient wird NICHT geleert – der Katalog ist
+        // server-unabhängig und bleibt für den nächsten Join gültig.
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             CosmeticsApiClient.clearCache();
+            BadgeApiClient.clearCache();
         });
 
+        // RShift → Menü öffnen + sichtbare Spieler vorladen
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (keyOpenMenu.wasPressed()) {
-                CosmeticsApiClient.loadAllVisible(MinecraftClient.getInstance());
+                // Kein loadAllVisible mehr — verursacht Massen-Requests auf großen Servern.
+                // Der Screen lädt den eigenen Spieler über fetchWithCallback direkt.
                 client.setScreen(new ClientModScreen());
             }
         });
 
-        // Set window title with branding when not in fullscreen
+        // Fenstertitel mit Branding
         ClientTickEvents.END_CLIENT_TICK.register(new ClientTickEvents.EndTick() {
             private boolean lastFullscreen = false;
-            private boolean initialized = false;
+            private boolean initialized    = false;
 
             @Override
             public void onEndTick(MinecraftClient client) {
                 boolean fullscreen = client.getWindow().isFullscreen();
                 if (!initialized || fullscreen != lastFullscreen) {
-                    initialized = true;
+                    initialized    = true;
                     lastFullscreen = fullscreen;
                     if (!fullscreen) {
                         client.getWindow().setTitle("VoxelClient v" + MOD_VERSION);
@@ -159,22 +187,26 @@ public class VoxelClientClient implements ClientModInitializer {
     public void initClientConnectionListeners() {
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             client.execute(() -> {
-                // Eigene UUID sofort vorladen
                 if (client.player != null) {
                     UUID ownUuid = client.player.getUuid();
-                    // Einmal aufrufen damit der async Fetch startet
+                    // Spieler-Cosmetics neu laden (Server kann unterschiedliche Items haben)
                     CosmeticsApiClient.clearCache();
                     CosmeticsApiClient.prefetch(ownUuid);
+
+                    // Katalog nachladen falls er beim Start noch nicht fertig war
+                    if (!CosmeticsCatalogClient.isLoaded()) {
+                        CosmeticsCatalogClient.fetch(catalog ->
+                                System.out.println("[VoxelClient] ✔ Katalog nachgeladen beim Join")
+                        );
+                    }
                 }
             });
         });
-
     }
 
     public void showDiscordRichPresence() {
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             client.execute(() -> {
-                // Singleplayer
                 if (client.isInSingleplayer()) {
                     String worldName = client.getServer() != null
                             ? client.getServer().getSaveProperties().getLevelName()
@@ -184,7 +216,6 @@ public class VoxelClientClient implements ClientModInitializer {
                     return;
                 }
 
-                // Multiplayer / Realms
                 var serverEntry = client.getCurrentServerEntry();
                 if (serverEntry != null) {
                     String address = serverEntry.address;
@@ -200,9 +231,11 @@ public class VoxelClientClient implements ClientModInitializer {
                 }
             });
         });
+
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) ->
                 DiscordRPCManager.showMainMenu()
         );
+
         System.out.println("[VoxelClient] ✔ Showing Discord Rich Presence!");
     }
 }
