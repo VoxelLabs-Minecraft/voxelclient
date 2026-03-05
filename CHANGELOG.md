@@ -1,16 +1,36 @@
-# Changelog
+# Changelog — VoxelClient
 
-## [0.1.0](https://github.com/VoxelLabs-Minecraft/voxelclient/compare/0.0.1...v0.1.0) (2026-03-01)
+## v0.0.2 — Quality of Life
+> Grundfunktionen erweitern
 
+### 🎮 Gameplay
+- **Toggle Sprint** — Sprint dauerhaft aktiv halten (Taste: `R`). Deaktiviert sich automatisch wenn der Spieler stoppt.
+- **Toggle Sneak** — Sneak dauerhaft aktiv halten (konfigurierbare Taste).
+- **Snap Look** — Kamera auf den nächsten 45°-Winkel (N, NE, E, SE, S, SW, W, NW) einrasten (konfigurierbare Taste).
 
-### Features
+### 📊 HUD
+- **Keystrokes Overlay (WASD)** — Zeigt W, A, S, D, SPACE, LMB & RMB als animierte Tasten an. Standard-Position: unten rechts.
+- **CPS Counter** — Zeigt Klicks pro Sekunde (LMB / RMB) basierend auf 1-Sekunden-Sliding-Window.
+- **Armor Durability Warning** — Zeigt Haltbarkeit aller Rüstungsteile. Warnung (🔴) bei < 20%, Orange bei < 50%.
+- **Ping Anzeige** — Zeigt aktuellen Server-Ping farbcodiert (Grün < 50ms, Rot > 300ms).
 
-* **badge:** add BadgeApiClient for dynamic creator badge system ([88fd69a](https://github.com/VoxelLabs-Minecraft/voxelclient/commit/88fd69aa1ca8c3825c82d36983af4242d19e70cb))
-* **badge:** add creator badge system for player names ([a3f2b66](https://github.com/VoxelLabs-Minecraft/voxelclient/commit/a3f2b6679ecd43eb1577796b480c400769c81483))
-* **discord:** add Discord Rich Presence integration ([1c3dbb4](https://github.com/VoxelLabs-Minecraft/voxelclient/commit/1c3dbb4af3762cb18a7faca8292d41f4a00f4b73))
-* **gui:** enhance main menu with background and window title integration ([8c39789](https://github.com/VoxelLabs-Minecraft/voxelclient/commit/8c39789cf7e8a7522cba986867335eb1f107165a))
+### 🔧 Utility
+- **Waypoints System** — Wegpunkte speichern, anzeigen und verwalten. Gespeichert in `voxelclient/waypoints.json`. Richtungsanzeige am Bildschirmrand. Verwaltung via Settings → Utility → Wegpunkte.
+- **Death Waypoint** — Speichert automatisch beim Tod einen Wegpunkt mit Koordinaten und Uhrzeit. Bis zu 10 Death-Waypoints werden gespeichert.
+- **Chat Zeitstempel** — Fügt automatisch `[HH:mm]` vor jede Chat-Nachricht ein.
 
+### 🖥️ UI
+- **UI Animationen** — Alle VoxelClient-Screens blenden jetzt mit einem Fade+Slide-Effekt ein (250ms, easeOutCubic).
+- **Drag-and-Drop HUD** — HUD-Editor unter Settings → UI → HUD-Editor. Alle HUD-Elemente frei verschieben. Positionen werden in `voxelclient/hud_positions.json` gespeichert.
 
-### Bug Fixes
+---
 
-* **config:** update sources URL in fabric.mod.json ([dbb22df](https://github.com/VoxelLabs-Minecraft/voxelclient/commit/dbb22df0b8a67d5a6cc22a8865c46c861b84c215))
+## v0.0.1 — Initial Release
+- Custom HUD (FPS, XYZ, Blickrichtung, Rüstung, Speedometer)
+- Smooth Zoom (`C`)
+- Freelook (`Left Alt`)
+- Cosmetics (Cape via PNG-URL)
+- Spieler-Badges
+- Settings GUI (`Right Shift`)
+- Auto-Updater
+- Discord Rich Presence
