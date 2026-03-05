@@ -1,6 +1,6 @@
 # VoxelClient
 
-> Ein Fabric Client-Mod für Minecraft 1.21.4 mit Custom HUD, Zoom, Freelook, Cosmetics und mehr.
+> Ein Fabric Client-Mod für Minecraft 1.21.4 mit Custom HUD, Zoom, Freelook, Cosmetics, Utility-Features und vielen Quality-of-Life Verbesserungen.
 
 ---
 
@@ -16,6 +16,8 @@
 
 Der Installer lädt automatisch die neueste Version sowie die benötigte **Fabric API** herunter.
 
+---
+
 ### Manuell
 
 1. [Fabric Loader](https://fabricmc.net/use/installer) ≥ 0.16 installieren
@@ -26,82 +28,260 @@ Der Installer lädt automatisch die neueste Version sowie die benötigte **Fabri
 
 ---
 
-## ✦ Features
+# ✦ Features
 
-### 📊 Custom HUD
-Ein übersichtliches In-Game-Display mit FPS-Counter, XYZ-Koordinaten, Blickrichtung, Rüstungszustand und Speedometer — alles farbig und klar dargestellt direkt im Sichtfeld.
+## 📊 Custom HUD
 
-### 🔍 Smooth Zoom
-Sanftes Hereinzoomen mit cinematischem Easing-Effekt. Die Stärke lässt sich bequem per Mausrad feinjustieren. Standard-Taste: `C`
+Ein übersichtliches, anpassbares In-Game-Display:
 
-### 👁️ Freelook
-Die Kamera unabhängig vom Spielermodell frei drehen — ideal für PvP, Erkundung und Cinematics. Standard-Taste: `Left Alt`
+- FPS-Counter
+- XYZ-Koordinaten
+- Blickrichtung
+- Rüstungsanzeige
+- Speedometer
+- Ping-Anzeige (farbcodiert)
+- CPS Counter (LMB / RMB)
+- Keystrokes Overlay (WASD, SPACE, LMB, RMB)
 
-### 🎭 Cosmetics
-Lade deinen eigenen Cape über eine beliebige PNG-URL. Das Cape wird asynchron im Hintergrund geladen, ohne den Spielstart zu verzögern.
+Alle HUD-Elemente sind frei verschiebbar.
 
-### ✦ Spieler-Badges
-Vor jedem Spielernamen erscheint ein kleines Badge — in der Tab-Liste sowie über dem Kopf:
+---
+
+## 🖱️ HUD-Editor
+
+Unter **Settings → UI → HUD-Editor** kannst du:
+
+- Alle HUD-Elemente per Drag-and-Drop verschieben
+- Positionen dauerhaft speichern
+- Layout individuell anpassen
+
+Gespeichert wird in:
+
+```
+voxelclient/hud_positions.json
+```
+
+Zusätzlich besitzen alle UI-Screens eine moderne **Fade + Slide Animation (250ms, easeOutCubic)**.
+
+---
+
+## 🎮 Gameplay Features
+
+### 🏃 Toggle Sprint
+Sprint dauerhaft aktiv halten (Standard: `R`).  
+Deaktiviert sich automatisch beim Stoppen.
+
+### 🕵️ Toggle Sneak
+Sneak dauerhaft aktivieren (Taste konfigurierbar).
+
+### 🧭 Snap Look
+Rastet deine Kamera auf den nächsten 45°-Winkel ein:  
+N, NE, E, SE, S, SW, W, NW  
+(Taste konfigurierbar)
+
+---
+
+## 🔍 Smooth Zoom
+
+Sanftes Hereinzoomen mit cinematischem Easing-Effekt.  
+Zoom-Stärke per Mausrad feinjustierbar.
+
+**Standard-Taste:** `C`
+
+---
+
+## 👁️ Freelook
+
+Die Kamera unabhängig vom Spielermodell frei drehen — ideal für PvP, Erkundung und Cinematics.
+
+**Standard-Taste:** `Left Alt`
+
+---
+
+## 📍 Waypoints System
+
+Speichere und verwalte Wegpunkte direkt im Spiel.
+
+- Wegpunkte erstellen & löschen
+- Richtungsanzeige am Bildschirmrand
+- Verwaltung unter **Settings → Utility → Wegpunkte**
+
+Speicherung in:
+
+```
+voxelclient/waypoints.json
+```
+
+### ☠ Death Waypoint
+Beim Tod wird automatisch ein Wegpunkt erstellt:
+
+- Speichert Koordinaten + Uhrzeit
+- Maximal 10 Death-Waypoints gespeichert
+
+---
+
+## 🛡️ Armor Durability Warning
+
+- Zeigt Haltbarkeit aller Rüstungsteile
+- 🟠 Orange bei < 50%
+- 🔴 Rot bei < 20%
+
+---
+
+## 📊 CPS Counter
+
+Zeigt Klicks pro Sekunde für:
+
+- LMB
+- RMB
+
+Basiert auf einem 1-Sekunden-Sliding-Window.
+
+---
+
+## 🌐 Ping Anzeige
+
+Zeigt aktuellen Server-Ping:
+
+- 🟢 Grün < 50ms
+- 🟡 Mittel
+- 🔴 Rot > 300ms
+
+---
+
+## ⌨️ Keystrokes Overlay
+
+Animierte Anzeige von:
+
+- W, A, S, D
+- SPACE
+- LMB
+- RMB
+
+Standard-Position: unten rechts  
+Im HUD-Editor frei verschiebbar.
+
+---
+
+## 💬 Chat Zeitstempel
+
+Fügt automatisch einen Zeitstempel vor jede Nachricht:
+
+```
+[HH:mm] Nachricht
+```
+
+---
+
+## 🎭 Cosmetics
+
+Lade deinen eigenen Cape über eine beliebige PNG-URL.  
+Das Cape wird asynchron geladen, ohne den Spielstart zu verzögern.
+
+---
+
+## ✦ Spieler-Badges
+
+Vor jedem Spielernamen erscheint ein Badge:
+
 - **Grau** `✦` → normaler Spieler
 - **Dunkelrot** `✦` → VoxelClient Creator
 
-### ⚙️ Settings GUI
-Ein vollständiges In-Game-Einstellungsmenü mit Tab-Navigation. Alle Einstellungen werden automatisch als JSON gespeichert. Standard-Taste: `Right Shift`
+Sichtbar:
 
-### 🔔 Auto-Updater
-Beim Start wird automatisch geprüft ob eine neue Version auf GitHub verfügbar ist. Ein goldenes Banner im Hauptmenü informiert dich — ein Klick öffnet die Download-Seite.
-
-### 🎮 Discord Rich Presence
-Zeigt deinen aktuellen Status in Discord an — ob du im Hauptmenü bist, auf einem Server spielst, Singleplayer oder Realms. Server-Logos werden automatisch angezeigt.
+- In der Tab-Liste
+- Über dem Kopf
 
 ---
 
-## ⌨️ Keybinds
+## ⚙️ Settings GUI
+
+Modernes In-Game-Menü mit Tab-Navigation.
+
+- Alle Features konfigurierbar
+- JSON-basierte Speicherung
+- Utility-, UI- und Gameplay-Bereiche
+
+**Standard-Taste:** `Right Shift`
+
+---
+
+## 🔔 Auto-Updater
+
+Beim Start wird automatisch geprüft, ob eine neue Version verfügbar ist.
+
+- Goldenes Banner im Hauptmenü
+- Direktlink zur Download-Seite
+- Taste `U` öffnet Update-Seite
+
+---
+
+## 🎮 Discord Rich Presence
+
+Zeigt deinen aktuellen Status in Discord:
+
+- Hauptmenü
+- Singleplayer
+- Multiplayer
+- Realms
+
+Server-Logos werden automatisch angezeigt.
+
+---
+
+# ⌨️ Keybinds (Standard)
 
 | Funktion | Taste |
-|---|---|
+|----------|-------|
 | Settings öffnen | `Right Shift` |
 | Zoom | `C` (halten) |
 | Freelook | `Left Alt` (halten) |
+| Toggle Sprint | `R` |
 | Update-Seite öffnen | `U` |
+| Snap Look | konfigurierbar |
+| Toggle Sneak | konfigurierbar |
 
-Alle Tasten sind in den Minecraft-Einstellungen unter **Tastenbelegung → VoxelClient** frei anpassbar.
+Alle Tasten sind unter  
+**Minecraft → Optionen → Tastenbelegung → VoxelClient**  
+frei anpassbar.
 
 ---
 
-## 📋 Voraussetzungen
+# 📋 Voraussetzungen
 
 | Was | Version |
-|---|---|
+|------|----------|
 | Minecraft | 1.21.4 |
 | Fabric Loader | ≥ 0.16 |
-| Fabric API | beliebig (1.21.4) |
+| Fabric API | 1.21.4 |
 | Java | 21+ |
 
 ---
 
-## 🏗️ Selbst bauen
+# 🏗️ Selbst bauen
 
 ```bash
-git clone https://github.com/yourname/voxelclient
+git clone https://github.com/VoxelLabs-Minecraft/voxelclient.git
 cd voxelclient
 ./gradlew build
 # → build/libs/voxelclient-x.x.x.jar
 ```
 
-Zum Testen direkt in Minecraft starten:
+Client direkt starten:
+
 ```bash
 ./gradlew runClient
 ```
 
 ---
 
-## 📄 Lizenz
+# 📄 Lizenz
 
-MIT License — siehe [LICENSE](https://github.com/VoxelLabs-Minecraft/voxelclient/blob/main/LICENSE.txt)
+MIT License — siehe  
+https://github.com/VoxelLabs-Minecraft/voxelclient/blob/main/LICENSE.txt
 
 ---
 
 <div align="center">
-  Made with ♥ by VoxelLabs &nbsp;·&nbsp; Plantaria.net &nbsp;·&nbsp; ave.rip
+  Made with ♥ by VoxelLabs · Plantaria.net · ave.rip
 </div>
