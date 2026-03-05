@@ -33,7 +33,7 @@ public final class VersionChecker {
     // ── Konfiguration ─────────────────────────────────────────────────────────
 
     /** Exakte Version, die gerade im Code steckt. Muss mit dem Git-Tag übereinstimmen. */
-    public static final String CURRENT_VERSION = "0.0.1";
+    public static final String CURRENT_VERSION = "0.0.2";
 
     /** GitHub-Nutzername / Organisation */
     private static final String GITHUB_OWNER = "VoxelLabs-Minecraft";          // ← anpassen
