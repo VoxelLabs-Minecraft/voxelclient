@@ -1,14 +1,3 @@
-# ============================================================
-# .github/dependabot.yml – VoxelClient Dependency Updates
-# ============================================================
-# Automatische Updates für:
-# - Fabric/Fabric API
-# - Java/Gradle Dependencies
-# - GitHub Actions
-#
-# Optimiert für Minecraft Java 1.21.4 – 1.21.11
-# ============================================================
-
 version: 2
 
 updates:
@@ -16,6 +5,7 @@ updates:
   # ── Gradle (Fabric Mod Dependencies) ──────────────────────
   - package-ecosystem: "gradle"
     directory: "/"
+
     schedule:
       interval: "daily"
       time: "06:00"
@@ -32,7 +22,6 @@ updates:
       prefix: "chore(deps)"
       include: "scope"
 
-    # Gruppiert alle sicheren Updates
     groups:
 
       fabric-core:
@@ -58,8 +47,6 @@ updates:
           - "minor"
           - "patch"
 
-    # Keine automatischen Major-Upgrades
-    # wegen möglicher Breaking Changes zwischen MC-Versionen
     ignore:
 
       - dependency-name: "net.fabricmc:fabric-loader"
