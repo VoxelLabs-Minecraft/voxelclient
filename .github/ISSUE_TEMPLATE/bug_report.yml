@@ -1,0 +1,53 @@
+name: Bug Report
+description: Report a bug or crash
+title: "[Bug]: "
+labels:
+  - bug
+
+body:
+
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for reporting a bug.
+
+  - type: input
+    id: mcversion
+    attributes:
+      label: Minecraft Version
+      placeholder: 1.21.4
+    validations:
+      required: true
+
+  - type: input
+    id: fabric
+    attributes:
+      label: Fabric Loader Version
+      placeholder: 0.xx.x
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      placeholder: What happened?
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to Reproduce
+      placeholder: |
+        1. Open game
+        2. Enable module
+        3. Crash
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Crash Report
+      render: shell
