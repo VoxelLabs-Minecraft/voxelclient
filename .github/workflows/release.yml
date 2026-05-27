@@ -69,7 +69,7 @@ jobs:
         if: steps.versioncheck.outputs.release == 'true'
         uses: Kir-Antipov/mc-publish@v3
         with:
-          modrinth-id: YOUR_MODRINTH_ID
+          modrinth-id: FbeTN5pt
           modrinth-token: ${{ secrets.MODRINTH_TOKEN }}
           files: build/libs/*.jar
           version: ${{ steps.version.outputs.version }}
