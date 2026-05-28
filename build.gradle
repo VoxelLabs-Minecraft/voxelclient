@@ -39,8 +39,8 @@ dependencies {
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
     // Badge
-    annotationProcessor "io.github.llamalad7:mixinextras-fabric:0.4.1"
-    implementation include("io.github.llamalad7:mixinextras-fabric:0.4.1")
+    annotationProcessor "io.github.llamalad7:mixinextras-fabric:0.5.4"
+    implementation include("io.github.llamalad7:mixinextras-fabric:0.5.4")
 }
 
 processResources {
